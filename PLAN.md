@@ -1,8 +1,8 @@
 # Plan — LoL Analytics (1 h/jour)
 
 ## 26 oct. – 8 nov. : bases
-- [ x] Créer le dépôt GitHub et faire le premier commit
-- [ ] Environnement Python (venv) + `requests`, `pandas`, `python-dotenv`
+- [x] Créer le dépôt GitHub et faire le premier commit
+- [x] Environnement Python (venv) + `requests`, `pandas`, `python-dotenv`
 - [ ] Clé de dev Riot → `.env` ; premiers appels : account-v1 (Riot ID → PUUID), match-v5 (liste, match, timeline)
 - [ ] Comprendre le format JSON d'une partie et de sa timeline
 - [ ] MCD / MLD (Merise) → `sql/schema.sql`
