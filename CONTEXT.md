@@ -16,8 +16,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
 - Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, et leurs dépendances
 
-## État d'avancement (mis à jour le 22 oct. 2026)
-- Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline ».
+## État d'avancement (mis à jour le 23 oct. 2026)
+- Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -28,22 +28,18 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   7. Etape 4 : exploration de la timeline (explore_timeline.py, resume_timeline.py, PLAN.md, CONTEXT.md)
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
-## Prochaine étape : étape 5, MCD / MLD (Merise) → sql/schema.sql
-But : concevoir la base de données qui stockera les parties collectées, à partir de ce qu'on a vu dans les JSON match et timeline.
-1. Lister les entités et leurs attributs. Pistes de départ (à discuter) :
-   - Joueur (puuid, pseudonymisé avant publication)
-   - Partie (match_id, date, durée, version du jeu, type de file)
-   - Participation (une ligne par joueur et par partie : participantId, teamId, champion, kills/deaths/assists, win)
-   - Équipe dans une partie (teamId, win, objectifs finaux)
-   - État d'un joueur à une minute (partie, participantId, minute, totalGold, xp, level, CS)
-   - Événement (partie, timestamp, type, tueur, victime, équipe, type de monstre ou de bâtiment)
-2. Décider : garder toutes les frames (utile pour le GRU de janvier) ou seulement l'état à 15 min. Recommandation : toutes les frames, ça coûte peu et l'état à 15 min se calcule avec une requête SQL.
-3. Dessiner le MCD (entités, associations, cardinalités), puis le traduire en MLD (tables, clés primaires et étrangères).
-4. Écrire sql/schema.sql (CREATE TABLE).
-Ensuite : étape 6, PostgreSQL dans Docker.
+## Prochaine étape : étape 6, PostgreSQL dans Docker
+But : faire tourner PostgreSQL dans un conteneur Docker (docker-compose.yml), avec les identifiants de DATABASE_URL de .env.example (lol / lol / lol, port 5432), et créer les tables avec sql/schema.sql. Paul n'a encore jamais utilisé Docker : tout expliquer (image, conteneur, volume, port, docker compose up -d, psql dans le conteneur). Vérifier que Docker Desktop est installé et démarré.
+
+## Étape 5 faite : décisions de conception (23 oct. 2026)
+- sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
+- Choix : pas de win dans participants (déduit de teams) ; totalGold et pas currentGold ; killerId 0 de Riot -> NULL ; events.killer_team_id = équipe qui GAGNE l'objectif (pour BUILDING_KILL et TURRET_PLATE_DESTROYED, le teamId de Riot est l'équipe qui perd le bâtiment, donc on stocke 300 - teamId) ; puuid uniquement dans players (un seul endroit à pseudonymiser).
+- Testé sur PostgreSQL 16 : le script s'exécute sans erreur et la partie EUW1_7995392565 se charge entièrement. Or à la minute 15 : équipe 100 = 26 387, équipe 200 = 27 591 (écart bleu - rouge = -1 204).
+- Points à gérer à la collecte (étape 7) : convertir gameCreation (ms) en date ; killerId 0 -> NULL ; ignorer les events non listés ; parties de moins de 15 min (pas de frame 15) ; CHAMPION_KILL avec killerId 0 = exécution (tueur NULL, killer_team_id à déduire de la victime).
+- Guide détaillé : guide-etape-5-mcd-mld.md (dans les fichiers du projet claude, pas dans le dépôt).
 
 ## Fichiers
-- src/explore.py : charge la clé avec load_dotenv(), appelle account-v1 (Riot ID -> puuid), match-v5 /ids (5 dernières parties), puis match-v5 /matches/{id} et enregistre le JSON dans data/match_exemple.json. Affiche la liste des ids.
+- src/explore.py : charge la clé avec load_dotenv(), appelle account-v1 (Riot ID -> puuid), match-v5 /ids (5 dernières parties), puis match-v5 /matches/{MATCH_ID} (MATCH_ID = EUW1_7995392565, fixé en dur, comme explore_timeline.py) et enregistre le JSON dans data/match_exemple.json (encoding utf-8). Vérifie par un assert que le matchId correspond. Affiche la liste des ids.
 - src/explore_timeline.py : appelle /lol/match/v5/matches/{matchId}/timeline pour EUW1_7995392565, enregistre data/timeline_exemple.json, affiche le nombre de frames.
 - src/resume_timeline.py : relit data/timeline_exemple.json (aucun appel API), compte les types d'events et calcule l'écart d'or entre les équipes à 15 min.
 - .env : contient RIOT_API_KEY=... (clé de développement, expire toutes les 24 h). Ignoré par Git.
@@ -54,7 +50,8 @@ Ensuite : étape 6, PostgreSQL dans Docker.
 - README.md : présentation en anglais (objectifs, structure, mention légale Riot), à compléter avec les résultats.
 - PLAN.md : plan par étapes avec cases à cocher.
 - CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
-- sql/, notebooks/, tests/ : vides (un .gitkeep chacun).
+- sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).
+- notebooks/, tests/ : vides (un .gitkeep chacun).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}
@@ -98,6 +95,7 @@ Par équipe :
 - Résultat (la cible à prédire) : win dans le JSON match, ou GAME_END dans la timeline
 
 ## À corriger (repéré, pas encore fait)
+- README.md : la section Setup ne dit pas de créer le venv ni de faire pip install -r requirements.txt. À compléter (en anglais) avant la v1 publique.
 - Plus tard (étape collecte) : sortir get() dans un module commun et lire la région depuis .env au lieu de l'écrire en dur.
 
 ## Décision en attente
