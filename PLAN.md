@@ -6,7 +6,7 @@
 - [x] Clé de dev Riot → `.env` ; premiers appels : account-v1 (Riot ID → PUUID), match-v5 (liste, match, timeline)
 - [x] Comprendre le format JSON d'une partie et de sa timeline
 - [x] MCD / MLD (Merise) → `sql/schema.sql`
-- [ ] PostgreSQL dans Docker
+- [x] PostgreSQL dans Docker
 
 ## 9 – 22 nov. : collecte
 - [ ] Script de collecte : limites (20 req/s, 100 req/2 min), erreurs 429, reprise

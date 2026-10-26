@@ -1,0 +1,27 @@
+# =====================================================================
+# LoL Analytics : base PostgreSQL dans Docker (étape 6)
+# Démarrer : docker compose up -d
+# Arrêter  : docker compose stop   (les données sont gardées)
+# =====================================================================
+
+services:
+  db:
+    image: postgres:16                 # même version que celle où schema.sql a été testé
+    container_name: lol-postgres       # nom fixe, plus simple à taper
+    environment:
+      POSTGRES_USER: lol               # identifiants de DATABASE_URL (.env.example)
+      POSTGRES_PASSWORD: lol           # base locale uniquement, voir "ports"
+      POSTGRES_DB: lol
+    ports:
+      - "127.0.0.1:5433:5432"          # PC:5433 -> conteneur:5432 (5432 souvent déjà pris)
+    volumes:
+      - pgdata:/var/lib/postgresql/data                                # les données survivent au conteneur
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro  # tables créées au 1er démarrage
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lol -d lol"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

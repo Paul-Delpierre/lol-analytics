@@ -14,22 +14,40 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\OneDrive\Bureau\lol-analytics (branche main)
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, et leurs dépendances
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), et leurs dépendances
+- Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 23 oct. 2026)
-- Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.).
+## État d'avancement (mis à jour le 26 oct. 2026)
+- Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
   3. Set up Python environment
   4. Etape 3 : premiers appels API Riot
   5. Ajout de CONTEXT.md pour reprendre le contexte
-  6. 9c987d4 Convert requirements to UTF-8, update CONTEXT.md and .gitignore
-  7. Etape 4 : exploration de la timeline (explore_timeline.py, resume_timeline.py, PLAN.md, CONTEXT.md)
+  6. 286c1f1 Mise à jour de CONTEXT.md et ajout de CLAUDE.md au .gitignore
+  7. 9c987d4 Convert requirements to UTF-8, update CONTEXT.md and .gitignore
+  8. f747d0e Etape 4 : exploration de la timeline (explore_timeline.py, resume_timeline.py, PLAN.md, CONTEXT.md)
+  9. b44816a Fix CONTEXT.md formatting
+  10. 00ca27f Etape 5 : schema SQL (MCD/MLD) et fix explore.py
+  11. Etape 6 : PostgreSQL dans Docker (commit fait par Paul le 26 oct.)
+- Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
-## Prochaine étape : étape 6, PostgreSQL dans Docker
-But : faire tourner PostgreSQL dans un conteneur Docker (docker-compose.yml), avec les identifiants de DATABASE_URL de .env.example (lol / lol / lol, port 5432), et créer les tables avec sql/schema.sql. Paul n'a encore jamais utilisé Docker : tout expliquer (image, conteneur, volume, port, docker compose up -d, psql dans le conteneur). Vérifier que Docker Desktop est installé et démarré.
+## Étape 6 faite : PostgreSQL dans Docker (26 oct. 2026)
+- Fichiers écrits par Claude sur le PC (testés dans le cloud avec Docker + PostgreSQL 16.15 : les 7 tables sont créées, les données survivent à docker compose down / up) :
+  - docker-compose.yml : service db, image postgres:16, conteneur lol-postgres, utilisateur / mot de passe / base = lol, port 127.0.0.1:5433 côté PC (5432 dans le conteneur), volume nommé pgdata (sur le PC : lol-analytics_pgdata), sql/schema.sql monté dans /docker-entrypoint-initdb.d/ (exécuté seulement quand le volume est vide), healthcheck pg_isready.
+  - src/check_db.py : se connecte avec psycopg à DATABASE_URL (lu dans .env) et vérifie que les 7 tables existent.
+  - requirements.txt : + psycopg 3.3.6 et psycopg-binary 3.3.6 (roue Windows pour Python 3.14 disponible).
+  - README.md : section Setup complétée (venv, pip install -r requirements.txt, .env, docker compose up -d, check_db.py).
+- Fait sur le PC de Paul : Docker Desktop installé (il a fallu activer la Virtual Machine Platform avec `wsl --install --no-distribution` en PowerShell administrateur, puis redémarrer), DATABASE_URL ajouté à .env, docker compose up -d, vérification avec psql dans le conteneur et python src/check_db.py. Guide : Claude Doc « Étape 6 — PostgreSQL dans Docker ».
+- Utilisation au quotidien : ouvrir Docker Desktop, puis `docker compose start` (ou `up -d`) avant de travailler avec la base ; à la fin de la séance, `docker compose stop` puis quitter Docker Desktop (il prend 1 à 2 Go de RAM).
+- Si schema.sql change plus tard : les tables ne sont recréées que si le volume est vide → docker compose down -v (efface toutes les données) puis docker compose up -d.
+
+- Problème du 26 oct. : docker compose up -d échouait avec « ports are not available: listen tcp4 127.0.0.1:5432: bind: An attempt was made to access a socket in a way forbidden by its access permissions ». 5432 n'est pas dans les plages réservées par Windows (netsh … excludedportrange : 28385, 28390, 50000-50059) et redémarrer winnat n'a rien changé : un autre programme utilise déjà 5432 sur le PC. Solution : port 5433 côté PC (docker-compose.yml, .env, .env.example).
+
+## Prochaine étape après la 6 : étape 7, script de collecte
+Limites Riot (20 req/s, 100 req/2 min), erreurs 429 (en-tête Retry-After), reprise après coupure, insertion en base avec psycopg. Sortir get() dans un module commun et lire la région depuis .env.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -42,12 +60,14 @@ But : faire tourner PostgreSQL dans un conteneur Docker (docker-compose.yml), av
 - src/explore.py : charge la clé avec load_dotenv(), appelle account-v1 (Riot ID -> puuid), match-v5 /ids (5 dernières parties), puis match-v5 /matches/{MATCH_ID} (MATCH_ID = EUW1_7995392565, fixé en dur, comme explore_timeline.py) et enregistre le JSON dans data/match_exemple.json (encoding utf-8). Vérifie par un assert que le matchId correspond. Affiche la liste des ids.
 - src/explore_timeline.py : appelle /lol/match/v5/matches/{matchId}/timeline pour EUW1_7995392565, enregistre data/timeline_exemple.json, affiche le nombre de frames.
 - src/resume_timeline.py : relit data/timeline_exemple.json (aucun appel API), compte les types d'events et calcule l'écart d'or entre les équipes à 15 min.
-- .env : contient RIOT_API_KEY=... (clé de développement, expire toutes les 24 h). Ignoré par Git.
-- .env.example : modèle versionné, sans vraie clé. Contient aussi RIOT_PLATFORM=euw1, RIOT_REGION=europe et DATABASE_URL=postgresql://lol:lol@localhost:5432/lol, pas encore utilisés par le code (BASE est écrit en dur).
+- .env : contient RIOT_API_KEY=... (clé de développement, expire toutes les 24 h) et, à partir de l'étape 6, DATABASE_URL=postgresql://lol:lol@localhost:5433/lol. Ignoré par Git.
+- .env.example : modèle versionné, sans vraie clé. Contient aussi RIOT_PLATFORM=euw1, RIOT_REGION=europe (pas encore utilisés par le code : BASE est écrit en dur) et DATABASE_URL (utilisé par src/check_db.py).
+- docker-compose.yml : la base PostgreSQL 16 dans Docker (voir « Étape 6 »).
+- src/check_db.py : test de connexion Python → PostgreSQL et présence des 7 tables.
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
-- README.md : présentation en anglais (objectifs, structure, mention légale Riot), à compléter avec les résultats.
+- README.md : présentation en anglais (objectifs, structure, installation complète, mention légale Riot), à compléter avec les résultats.
 - PLAN.md : plan par étapes avec cases à cocher.
 - CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
 - sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).
@@ -95,7 +115,6 @@ Par équipe :
 - Résultat (la cible à prédire) : win dans le JSON match, ou GAME_END dans la timeline
 
 ## À corriger (repéré, pas encore fait)
-- README.md : la section Setup ne dit pas de créer le venv ni de faire pip install -r requirements.txt. À compléter (en anglais) avant la v1 publique.
 - Plus tard (étape collecte) : sortir get() dans un module commun et lire la région depuis .env au lieu de l'écrire en dur.
 
 ## Décision en attente
@@ -109,8 +128,9 @@ Par équipe :
 - 22 oct. : une capture d'écran du terminal montrait le début de la clé Riot. Recadrer les captures avant de les envoyer.
 
 ## Règles
+- Docker : Claude rappelle à Paul, au début de chaque séance qui utilise la base, d'ouvrir Docker Desktop puis de faire `docker compose start`, et à la fin, de faire `docker compose stop` puis de fermer Docker Desktop (demande de Paul du 26 oct. 2026).
 - Ne jamais committer .env, data/ ni CLAUDE.md
 - Ne jamais coller la clé Riot dans le chat (afficher .env avec (Get-Content .env) -replace '=.*','=***')
 - Pseudonymiser les identifiants des autres joueurs
 - Clé de dev = usage perso uniquement, pas de site public
-- À la fin de chaque étape : Claude met à jour CONTEXT.md, PLAN.md est coché, commit + push, puis PLAN.md et CONTEXT.md sont recopiés dans les documents du Project claude.ai
+- À la fin de chaque étape : Claude met à jour CONTEXT.md, PLAN.md est coché, commit + push, puis Claude recopie lui-même PLAN.md et CONTEXT.md dans les fichiers du projet claude.ai (knowledge/claude/)

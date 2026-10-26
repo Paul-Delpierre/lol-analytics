@@ -20,13 +20,26 @@ lol-analytics/
 ├── sql/         # Database schema
 ├── notebooks/   # Exploration and analysis
 ├── tests/       # Unit tests
-└── data/        # Local data (not versioned)
+├── data/        # Local data (not versioned)
+└── docker-compose.yml  # PostgreSQL database
 ```
 
 ## Setup
 
+Requirements: Python 3.14 and Docker Desktop.
+
 ```bash
-cp .env.example .env   # then add your Riot API key
+# 1. Python environment
+python -m venv .venv
+.venv\Scripts\activate            # Windows (macOS/Linux: source .venv/bin/activate)
+pip install -r requirements.txt
+
+# 2. Configuration
+cp .env.example .env               # then add your Riot API key
+
+# 3. Database (PostgreSQL 16 in Docker; tables are created from sql/schema.sql on first start)
+docker compose up -d
+python src/check_db.py             # should list the 7 tables
 ```
 
 ## Data & privacy
