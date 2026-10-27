@@ -5,6 +5,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 
 ## Façon de travailler (règles fixées les 21 et 22 oct. 2026)
 - Claude écrit tout le code ; Paul n'en écrit pas, mais chaque morceau est expliqué en détail (pourquoi + comment, ligne par ligne).
+- Explication du code (règle actuelle, 27 oct. 2026 au soir) : expliquer le code par parties : ce que fait chaque partie, POURQUOI (choix de conception, alternatives écartées) et la structure d'ensemble. Le « comment » rapidement, pas ligne par ligne. Objectif : que Paul sache répondre à des questions de structure en entretien ; il pose ses questions de détail sur le coup.
 - Chaque étape du plan = un guide détaillé, pas à pas : commandes expliquées, ce qu'on doit voir, erreurs possibles, points de contrôle.
 - CONTEXT.md est rempli et mis à jour uniquement par Claude, jamais par Paul. Si Claude n'a pas accès au dossier local, il fournit le fichier complet et Paul le colle tel quel.
 - Paul est débutant en Git et en terminal : expliquer chaque commande donnée.
@@ -17,8 +18,9 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), et leurs dépendances
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 27 oct. 2026)
+## État d'avancement (mis à jour le 27 oct. 2026, fin de l'étape 8)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
+- Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -31,7 +33,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   9. b44816a Fix CONTEXT.md formatting
   10. 00ca27f Etape 5 : schema SQL (MCD/MLD) et fix explore.py
   11. 6c2f5f0 Etape 6 : PostgreSQL dans Docker
-  12. Etape 7 : script de collecte (riot_api.py, collect.py, README, PLAN, CONTEXT) — commit à faire par Paul le 27 oct.
+  12. 3aa562f Etape 7 : script de collecte (limites de debit, 429, reprise)
+  13. Etape 8 : insertion en base et controles qualite (load.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul le 27 oct.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -56,8 +59,24 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Limite à connaître : l'échantillon part de Paul (biais de niveau au début) ; seules les --per-player dernières parties de chaque joueur sont prises.
 - README : section « Data collection » ajoutée. Guide : Claude Doc « Étape 7 — Script de collecte » (https://claude.ai/artifact/MMmDJrCtXXLbWbszmnJy5c).
 
-## Prochaine étape : étape 8, insertion en base + contrôles qualité
-Lire les fichiers de data/raw (matches + timelines) et les insérer dans les 7 tables avec psycopg (DATABASE_URL, port 5433). À gérer (voir « Points à gérer » de l'étape 5) : gameCreation (ms) -> date ; killerId 0 -> NULL ; ne garder que les events listés ; parties de moins de 15 min / remakes ; doublons (ON CONFLICT DO NOTHING) ; valeurs manquantes ; pseudonymisation des puuid. Docker Desktop nécessaire (docker compose start).
+## Étape 8 faite : insertion en base + contrôles qualité (27 oct. 2026)
+- src/load.py (écrit par Claude) : lit data/raw/matches/*.json.gz + la timeline de même nom, et remplit les 7 tables avec psycopg (DATABASE_URL de .env, autocommit).
+  - Idempotent : les match_id déjà en base sont sautés (SELECT match_id FROM matches au début). Relancer le script après chaque collecte n'insère que les nouvelles parties. players : INSERT ... ON CONFLICT DO NOTHING (un joueur revient dans plusieurs parties).
+  - Une transaction par partie (with conn.transaction()) : la partie est insérée entièrement ou pas du tout ; une erreur SQL sur une partie est affichée et le script continue.
+  - Contrôles AVANT insertion (check_match, partie refusée avec sa raison) : timeline d'une autre partie, queueId ≠ 420, remake (gameEndedInEarlySurrender ou < 5 min), pas 10 joueurs numérotés 1-10, équipes ≠ 5/5, pas exactement une équipe gagnante, participantId timeline ≠ match, valeur obligatoire manquante, frame incomplète.
+  - Valeurs facultatives absentes -> NULL (p.get(...)) ; teamPosition "" -> NULL ; killerId/victimId 0 -> NULL.
+  - killer_team_id : CHAMPION_KILL -> équipe du tueur, ou 300 - équipe de la victime si exécution ; ELITE_MONSTER_KILL -> killerTeamId, NULL si 300 (héraut mort sans équipe, 10 cas sur 80 parties) ; BUILDING_KILL et TURRET_PLATE_DESTROYED -> 300 - teamId.
+  - Les parties de plus de 5 min mais de moins de 15 min sont gardées (vraies parties, utiles au GRU) : le modèle à 15 min les exclura avec WHERE minute = 15.
+  - Option --limit N : n'insère que N nouvelles parties (pour tester).
+- src/quality.py (écrit par Claude) : ne fait que lire. Affiche des chiffres (parties, joueurs, durées, parties sans minute 15, % victoires bleues, exécutions, patchs) et 10 contrôles SQL (OK / ATTENTION n cas) : 2 équipes et un seul gagnant par partie, 10 joueurs 5/5, aucune minute manquante, or total jamais en baisse, kills timeline (hors exécutions) = somme des kills du match par équipe, tours et dragons timeline = tower_kills / dragon_kills, aucun poste manquant, aucun remake.
+- Découverte : teams.champion_kills de Riot compte parfois les exécutions et parfois non ; le contrôle fiable est « kills avec un tueur dans la timeline = somme de participants.kills ».
+- Test dans le cloud (PostgreSQL 16, schema.sql, les 80 parties du PC) : 79 insérées + 1 remake refusé (EUW1_7961274942, 119 s), 2e lancement : 0 insérée, 79 déjà en base. ≈ 0,08 s par partie. Tables : 79 matches, 158 teams, 670 players, 790 participants, 24 290 participant_frames, 11 768 events, 8 461 event_assists. quality.py : 10/10 OK. Or à 15 min de EUW1_7995392565 identique à l'étape 5 (26 387 / 27 591).
+- README : section « Loading into PostgreSQL » ajoutée.
+- Fait sur le PC de Paul le 27 oct. : load.py --limit 5, load.py, relance (0 insérée, pas de doublon), quality.py : 10/10 contrôles OK. Guide : Claude Doc « Étape 8 — Insertion en base + contrôles qualité » (https://claude.ai/artifact/156x2HZrwLsmciAWfmkvMM).
+- Repartir de zéro si besoin (efface les données, garde les tables) : docker exec -it lol-postgres psql -U lol -d lol -c "TRUNCATE matches, players CASCADE;"
+
+## Prochaine étape : étape 9, lancer la collecte en fond
+Objectif : plusieurs milliers de parties (collect.py puis load.py). Avant : sortir le dossier de OneDrive (voir « Décision en attente »). À prévoir : la clé de dev expire toutes les 24 h (la collecte s'arrête proprement, il faut la relancer avec une nouvelle clé) ; ≈ 1 400 parties/h au maximum ; ≈ 85 Ko par partie sur le disque.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -76,6 +95,7 @@ Lire les fichiers de data/raw (matches + timelines) et les insérer dans les 7 t
 - src/riot_api.py et src/collect.py : client API et script de collecte (voir « Étape 7 faite »).
 - data/raw/ : parties brutes compressées (matches/, timelines/, players_done.txt). Ignoré par Git.
 - src/check_db.py : test de connexion Python → PostgreSQL et présence des 7 tables.
+- src/load.py et src/quality.py : insertion en base et contrôles qualité (voir « Étape 8 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).

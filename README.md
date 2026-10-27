@@ -54,6 +54,20 @@ python src/collect.py --riot-id "GameName#TAG" --max-matches 20
 - **Retries**: network errors and 5xx responses are retried with exponential backoff.
 - **Resume**: files are written atomically and never downloaded twice; run the same command again to continue after a stop.
 
+## Loading into PostgreSQL
+
+`src/load.py` reads the raw files and fills the 7 tables of `sql/schema.sql`. `src/quality.py` then runs consistency checks on the database.
+
+```bash
+python src/load.py        # insert every new match from data/raw
+python src/quality.py     # read-only checks, prints OK / ATTENTION
+```
+
+- **Idempotent**: matches already in the database are skipped, so the script can be run again after each collection.
+- **One transaction per match**: a match is inserted completely or not at all.
+- **Checks before insertion**: remakes, wrong queue, incomplete teams, missing values or a timeline that does not match the game are rejected with a reason.
+- **Checks after insertion**: 2 teams and one winner per match, 10 players, no missing minute, total gold never decreasing, and timeline events matching the match summary (kills, towers, dragons).
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.
