@@ -42,6 +42,18 @@ docker compose up -d
 python src/check_db.py             # should list the 7 tables
 ```
 
+## Data collection
+
+`src/collect.py` downloads ranked Solo/Duo matches and their timelines (match-v5) as compressed JSON files in `data/raw/`. It starts from one player and snowballs through the other players of each match.
+
+```bash
+python src/collect.py --riot-id "GameName#TAG" --max-matches 20
+```
+
+- **Rate limits**: `src/riot_api.py` keeps the development-key limits (20 requests/s and 100 requests/2 min) with two sliding windows, and waits for `Retry-After` on HTTP 429.
+- **Retries**: network errors and 5xx responses are retried with exponential backoff.
+- **Resume**: files are written atomically and never downloaded twice; run the same command again to continue after a stop.
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.

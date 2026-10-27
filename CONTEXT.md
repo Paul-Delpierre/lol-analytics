@@ -17,8 +17,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), et leurs dépendances
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 26 oct. 2026)
-- Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.).
+## État d'avancement (mis à jour le 27 oct. 2026)
+- Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -30,7 +30,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   8. f747d0e Etape 4 : exploration de la timeline (explore_timeline.py, resume_timeline.py, PLAN.md, CONTEXT.md)
   9. b44816a Fix CONTEXT.md formatting
   10. 00ca27f Etape 5 : schema SQL (MCD/MLD) et fix explore.py
-  11. Etape 6 : PostgreSQL dans Docker (commit fait par Paul le 26 oct.)
+  11. 6c2f5f0 Etape 6 : PostgreSQL dans Docker
+  12. Etape 7 : script de collecte (riot_api.py, collect.py, README, PLAN, CONTEXT) — commit à faire par Paul le 27 oct.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -46,8 +47,17 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 
 - Problème du 26 oct. : docker compose up -d échouait avec « ports are not available: listen tcp4 127.0.0.1:5432: bind: An attempt was made to access a socket in a way forbidden by its access permissions ». 5432 n'est pas dans les plages réservées par Windows (netsh … excludedportrange : 28385, 28390, 50000-50059) et redémarrer winnat n'a rien changé : un autre programme utilise déjà 5432 sur le PC. Solution : port 5433 côté PC (docker-compose.yml, .env, .env.example).
 
-## Prochaine étape après la 6 : étape 7, script de collecte
-Limites Riot (20 req/s, 100 req/2 min), erreurs 429 (en-tête Retry-After), reprise après coupure, insertion en base avec psycopg. Sortir get() dans un module commun et lire la région depuis .env.
+## Étape 7 faite : script de collecte (26-27 oct. 2026)
+- Choix : l'étape 7 télécharge le JSON brut sur le disque (zone « raw ») et n'écrit PAS en base. L'insertion PostgreSQL + contrôles qualité = étape 8. Raison : les appels API sont la ressource rare ; on peut refaire l'insertion sans retélécharger.
+- src/riot_api.py : RateLimiter (deux fenêtres glissantes 20 req/1 s et 100 req/120 s, une deque par fenêtre, affiche les pauses > 1 s) ; RiotClient(api_key, region) avec requests.Session et l'en-tête X-Riot-Token ; get(path, **params) : 200 -> JSON, 404 -> None, 401/403 -> RiotKeyError (message avec le chemin et la réponse de Riot), 429 -> attend Retry-After, 5xx et erreurs réseau -> backoff 2, 4, 8, 16 s ; 5 essais max.
+- src/collect.py : collecte « boule de neige » (parcours en largeur) depuis un Riot ID ; match-v5 /ids avec queue=420 ; pour chaque partie, match + timeline enregistrés dans data/raw/matches/<id>.json.gz et data/raw/timelines/<id>.json.gz (gzip, écriture atomique .tmp puis os.replace) ; les 9 autres joueurs vont dans la file. Reprise : une partie est faite si ses 2 fichiers existent ; joueurs parcourus dans data/raw/players_done.txt ; la file est reconstruite au démarrage à partir des fichiers de match. Options : --riot-id (obligatoire), --max-matches (objectif TOTAL sur le disque, 20 par défaut), --per-player (20 par défaut). Ctrl+C et clé expirée -> arrêt propre avec message.
+- Commande : python src/collect.py --riot-id "TECHNIQUEMENT#99999" --max-matches 20
+- Testé dans le cloud avec un faux serveur Riot (429, 503, 404, reprise), puis sur le PC le 27 oct. : 20 parties, puis 80 (pause du limiteur de 84 s observée, Ctrl+C à 68, reprise jusqu'à 80). Résultat : 80 matchs + 80 timelines, 6,4 Mo (≈ 80 Ko par partie), toutes en queue 420, aucun .tmp. Environ 24 parties/min au maximum (2 requêtes par partie), soit ≈ 1 400/h.
+- Limite à connaître : l'échantillon part de Paul (biais de niveau au début) ; seules les --per-player dernières parties de chaque joueur sont prises.
+- README : section « Data collection » ajoutée. Guide : Claude Doc « Étape 7 — Script de collecte » (https://claude.ai/artifact/MMmDJrCtXXLbWbszmnJy5c).
+
+## Prochaine étape : étape 8, insertion en base + contrôles qualité
+Lire les fichiers de data/raw (matches + timelines) et les insérer dans les 7 tables avec psycopg (DATABASE_URL, port 5433). À gérer (voir « Points à gérer » de l'étape 5) : gameCreation (ms) -> date ; killerId 0 -> NULL ; ne garder que les events listés ; parties de moins de 15 min / remakes ; doublons (ON CONFLICT DO NOTHING) ; valeurs manquantes ; pseudonymisation des puuid. Docker Desktop nécessaire (docker compose start).
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -63,6 +73,8 @@ Limites Riot (20 req/s, 100 req/2 min), erreurs 429 (en-tête Retry-After), repr
 - .env : contient RIOT_API_KEY=... (clé de développement, expire toutes les 24 h) et, à partir de l'étape 6, DATABASE_URL=postgresql://lol:lol@localhost:5433/lol. Ignoré par Git.
 - .env.example : modèle versionné, sans vraie clé. Contient aussi RIOT_PLATFORM=euw1, RIOT_REGION=europe (pas encore utilisés par le code : BASE est écrit en dur) et DATABASE_URL (utilisé par src/check_db.py).
 - docker-compose.yml : la base PostgreSQL 16 dans Docker (voir « Étape 6 »).
+- src/riot_api.py et src/collect.py : client API et script de collecte (voir « Étape 7 faite »).
+- data/raw/ : parties brutes compressées (matches/, timelines/, players_done.txt). Ignoré par Git.
 - src/check_db.py : test de connexion Python → PostgreSQL et présence des 7 tables.
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
@@ -115,14 +127,15 @@ Par équipe :
 - Résultat (la cible à prédire) : win dans le JSON match, ou GAME_END dans la timeline
 
 ## À corriger (repéré, pas encore fait)
-- Plus tard (étape collecte) : sortir get() dans un module commun et lire la région depuis .env au lieu de l'écrire en dur.
+- Rien pour l'instant. (Fait à l'étape 7 : get() sorti dans src/riot_api.py, région lue dans .env via RIOT_REGION. Les scripts d'exploration gardent leur propre get(), ce sont des scripts historiques.)
 
 ## Décision en attente
-- Sortir le dossier de OneDrive : OneDrive synchronise .venv et data/ (des milliers de fichiers), ce qui ralentit et peut bloquer des fichiers. À faire au plus tard avant l'étape collecte. Procédure : fermer VS Code, supprimer .venv, déplacer le dossier (ex. C:\Users\pauld\projets\lol-analytics), le rouvrir dans VS Code, recréer le venv (python -m venv .venv), réinstaller (pip install -r requirements.txt), vérifier avec git status. Puis mettre à jour le chemin dans ce fichier.
+- Sortir le dossier de OneDrive : OneDrive synchronise .venv et data/ (des milliers de fichiers), ce qui ralentit et peut bloquer des fichiers. À faire au plus tard avant l'étape 9 (collecte en fond de plusieurs milliers de parties : environ 85 Ko par partie, donc plusieurs centaines de Mo synchronisés par OneDrive). Procédure : fermer VS Code, supprimer .venv, déplacer le dossier (ex. C:\Users\pauld\projets\lol-analytics), le rouvrir dans VS Code, recréer le venv (python -m venv .venv), réinstaller (pip install -r requirements.txt), vérifier avec git status. Puis mettre à jour le chemin dans ce fichier.
 
 ## Problèmes déjà rencontrés
 - KeyError 'RIOT_API_KEY' : .env était vide (fichier non sauvegardé, Ctrl+S)
 - 401 Unauthorized : clé expirée, à régénérer sur developer.riotgames.com puis la remettre dans .env
+- 27 oct. : 401 juste après avoir régénéré la clé (account-v1 passait, match-v5 refusait) ; relancé une minute plus tard, tout marchait. Une nouvelle clé met parfois une minute à être active partout : attendre et relancer.
 - Warning Git LF/CRLF sur Windows : sans danger
 - Ctrl+P ne trouve pas les fichiers de data/ car ils sont ignorés par Git : ouvrir avec "code data/fichier.json" (pareil pour CLAUDE.md)
 - 22 oct. : une capture d'écran du terminal montrait le début de la clé Riot. Recadrer les captures avant de les envoyer.

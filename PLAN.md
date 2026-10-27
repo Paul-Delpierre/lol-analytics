@@ -9,7 +9,7 @@
 - [x] PostgreSQL dans Docker
 
 ## 9 – 22 nov. : collecte
-- [ ] Script de collecte : limites (20 req/s, 100 req/2 min), erreurs 429, reprise
+- [x] Script de collecte : limites (20 req/s, 100 req/2 min), erreurs 429, reprise
 - [ ] Insertion en base + contrôles qualité (doublons, parties remake, valeurs manquantes)
 - [ ] Lancer la collecte en fond (objectif : plusieurs milliers de parties)
 
