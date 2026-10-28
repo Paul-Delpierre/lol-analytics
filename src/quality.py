@@ -103,7 +103,13 @@ INFOS = [
      "SELECT count(*) FROM events WHERE event_type = 'CHAMPION_KILL' AND killer_id IS NULL"),
     ("Monstres épiques sans équipe (killerTeamId 300)",
      "SELECT count(*) FROM events WHERE event_type = 'ELITE_MONSTER_KILL' AND killer_team_id IS NULL"),
-    ("Patchs", "SELECT string_agg(DISTINCT left(game_version, 5), ', ') FROM matches"),
+    ("Parties par patch",
+     """SELECT string_agg(patch || ' : ' || n, ', ' ORDER BY major, minor) FROM (
+            SELECT split_part(game_version, '.', 1)::int AS major,
+                   split_part(game_version, '.', 2)::int AS minor,
+                   split_part(game_version, '.', 1) || '.' || split_part(game_version, '.', 2) AS patch,
+                   count(*) AS n
+            FROM matches GROUP BY 1, 2, 3) x"""),
 ]
 
 
