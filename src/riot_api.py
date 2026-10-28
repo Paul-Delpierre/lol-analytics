@@ -2,8 +2,12 @@
 
 Utilisé par collect.py. Remplace la petite fonction get() des scripts
 d'exploration (explore.py, explore_timeline.py).
+
+Les messages passent par le module logging (et non print) : collect.py
+choisit où ils vont (écran + fichier de log pour la collecte en fond).
 """
 
+import logging
 import time
 from collections import deque
 
@@ -11,6 +15,12 @@ import requests
 
 # Limites d'une clé de développement Riot : (nombre de requêtes, fenêtre en s).
 DEV_KEY_LIMITS = [(20, 1), (100, 120)]
+
+# Pause maximale entre deux essais : avec 8 essais, une coupure réseau ou une
+# panne de Riot de 4 minutes environ est absorbée sans arrêter la collecte.
+MAX_BACKOFF = 60
+
+log = logging.getLogger(__name__)
 
 
 class RiotKeyError(Exception):
@@ -34,7 +44,7 @@ class RateLimiter:
             if len(times) == n:
                 pause = times[0] + w - time.monotonic()
                 if pause > 1:
-                    print(f"  Limite de {n} requêtes / {w} s atteinte : pause de {pause:.0f} s")
+                    log.info(f"  Limite de {n} requêtes / {w} s atteinte : pause de {pause:.0f} s")
                 if pause > 0:
                     time.sleep(pause + 0.05)
         now = time.monotonic()
@@ -44,7 +54,7 @@ class RateLimiter:
 
 class RiotClient:
     def __init__(self, api_key, region="europe", limiter=None, session=None,
-                 max_retries=5):
+                 max_retries=8):
         if not api_key:
             raise RiotKeyError("RIOT_API_KEY est vide : vérifie le fichier .env")
         self.base = f"https://{region}.api.riotgames.com"
@@ -60,9 +70,9 @@ class RiotClient:
             try:
                 r = self.session.get(self.base + path, params=params, timeout=10)
             except (requests.ConnectionError, requests.Timeout) as e:
-                pause = 2 ** attempt
-                print(f"  Réseau indisponible ({type(e).__name__}), "
-                      f"nouvel essai dans {pause} s")
+                pause = min(2 ** attempt, MAX_BACKOFF)
+                log.warning(f"  Réseau indisponible ({type(e).__name__}), "
+                            f"nouvel essai dans {pause} s")
                 time.sleep(pause)
                 continue
 
@@ -79,12 +89,12 @@ class RiotClient:
                 )
             if r.status_code == 429:
                 pause = int(r.headers.get("Retry-After", 10))
-                print(f"  429 Too Many Requests : pause de {pause} s")
+                log.warning(f"  429 Too Many Requests : pause de {pause} s")
                 time.sleep(pause)
                 continue
             if r.status_code >= 500:
-                pause = 2 ** attempt
-                print(f"  Erreur serveur {r.status_code}, nouvel essai dans {pause} s")
+                pause = min(2 ** attempt, MAX_BACKOFF)
+                log.warning(f"  Erreur serveur {r.status_code}, nouvel essai dans {pause} s")
                 time.sleep(pause)
                 continue
             r.raise_for_status()  # autre code (400...) : erreur dans notre requête

@@ -12,15 +12,16 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 
 ## Environnement
 - Windows, VS Code, terminal PowerShell
-- Dépôt local : C:\Users\pauld\OneDrive\Bureau\lol-analytics (branche main)
+- Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
 - Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), et leurs dépendances
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 27 oct. 2026, fin de l'étape 8)
+## État d'avancement (mis à jour le 28 oct. 2026, fin de l'étape 9)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
+- Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -35,6 +36,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   11. 6c2f5f0 Etape 6 : PostgreSQL dans Docker
   12. 3aa562f Etape 7 : script de collecte (limites de debit, 429, reprise)
   13. Etape 8 : insertion en base et controles qualite (load.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul le 27 oct.
+  14. Etape 9 : collecte en fond (collect.py, riot_api.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -75,8 +77,24 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Fait sur le PC de Paul le 27 oct. : load.py --limit 5, load.py, relance (0 insérée, pas de doublon), quality.py : 10/10 contrôles OK. Guide : Claude Doc « Étape 8 — Insertion en base + contrôles qualité » (https://claude.ai/artifact/156x2HZrwLsmciAWfmkvMM).
 - Repartir de zéro si besoin (efface les données, garde les tables) : docker exec -it lol-postgres psql -U lol -d lol -c "TRUNCATE matches, players CASCADE;"
 
-## Prochaine étape : étape 9, lancer la collecte en fond
-Objectif : plusieurs milliers de parties (collect.py puis load.py). Avant : sortir le dossier de OneDrive (voir « Décision en attente »). À prévoir : la clé de dev expire toutes les 24 h (la collecte s'arrête proprement, il faut la relancer avec une nouvelle clé) ; ≈ 1 400 parties/h au maximum ; ≈ 85 Ko par partie sur le disque.
+## Étape 9 faite : collecte en fond (28 oct. 2026)
+- Dossier sorti de OneDrive le 28 oct. : C:\Users\pauld\projets\lol-analytics (même nom de dossier, donc même volume Docker lol-analytics_pgdata ; premier lancement après le déplacement avec docker compose up -d, qui recrée le conteneur avec le nouveau chemin). .venv supprimé puis recréé (py -3.14 -m venv .venv) ; piège rencontré : pip install lancé sans (.venv) dans le prompt installe dans le Python du PC (« Requirement already satisfied … pythoncore-3.14-64 ») → activer avec .venv\Scripts\Activate.ps1 puis relancer pip.
+- Code (écrit par Claude, testé dans le cloud avec un faux serveur Riot) :
+  - src/collect.py : messages via logging, à l'écran ET dans data/logs/collect.log (horodaté) ; keep_awake() = SetThreadExecutionState (ctypes) pour empêcher la veille de Windows pendant la collecte (l'écran peut s'éteindre ; fermer le capot met quand même en veille) ; single_instance() = verrou du système sur data/raw/collect.lock (msvcrt.locking / fcntl.flock), refuse une 2e collecte dans le même dossier, libéré automatiquement même si le script plante ; collect() séparée de main(), renvoie (nouvelles parties, raison de l'arrêt) ; report() = bilan toutes les 100 parties (parties/h, heure de fin estimée) ; RuntimeError (réseau ou Riot en panne trop longtemps) -> arrêt propre.
+  - src/riot_api.py : logging au lieu de print (la bibliothèque produit les messages, collect.py décide où ils vont) ; 8 essais, backoff plafonné à 60 s (2, 4, 8, 16, 32, 60, 60, 60) : une coupure d'environ 4 min est absorbée.
+  - src/quality.py : la ligne « Patchs » (left(game_version, 5) affichait « 16.1. ») remplacée par « Parties par patch » (split_part, nombre de parties par patch, tri numérique).
+  - README : section « Background collection ».
+- Lancement : fenêtre PowerShell séparée, .\.venv\Scripts\python.exe src\collect.py --riot-id "TECHNIQUEMENT#99999" --max-matches 5000 ; suivi avec Get-Content data\logs\collect.log -Encoding utf8 -Wait -Tail 20.
+- Résultat : collecte d'une traite le 28 oct. de 17 h 30 à 20 h 50, 4 870 nouvelles parties, 1 460 parties/h (proche du maximum théorique de 1 500/h fixé par 100 requêtes / 2 min), 0 arrêt. data/raw = 5 000 parties, 401 Mo.
+- load.py : 4 907 parties en base (93 refusées : remakes). quality.py : 41 173 joueurs, 1 540 740 lignes participant_frames, 729 999 events, 532 538 event_assists ; durée 5,0 / 29,9 / 52,3 min ; 58 parties sans minute 15 ; victoires bleues 48,3 % ; 949 exécutions ; 652 monstres épiques sans équipe.
+- 2 avertissements, expliqués (pas des bugs de chargement, données gardées telles quelles) :
+  - « L'or total ne baisse jamais » : 2 cas sur 1,5 M lignes (EUW1_7993549538 joueur 8 minute 12 : -90 ; EUW1_8013684170 joueur 2 minute 29 : -176). Les deux coïncident avec un event ITEM_UNDO (bouton « annuler » de la boutique) : Riot retire alors un peu de totalGold. Négligeable.
+  - « Aucun poste manquant » : 1 cas, EUW1_8028482881 joueur 6 (Fiora), partie de 8 min, individualPosition = "Invalid" : joueur probablement AFK dès le début, Riot n'a pas pu deviner son poste. team_position NULL est la bonne valeur.
+- Patchs (à retenir pour l'analyse) : la boule de neige prend les 20 dernières parties classées de chaque joueur, donc certaines sont anciennes (de juillet 2025, patch 15.14, à octobre 2026). 16.21 : 1 450, 16.20 : 1 053, 16.19 : 421, 16.14 à 16.18 : 1 892, avant 16.14 : environ 90. Penser à filtrer ou contrôler par patch à l'étape 10.
+- Guide : Claude Doc « Étape 9 — Collecte en fond » (https://claude.ai/artifact/K1DSMirV5KudR2PawJMjHY).
+
+## Prochaine étape : étape 10, analyse exploratoire (notebook)
+Premier notebook dans notebooks/ : lire la base avec pandas (psycopg), distributions (durée, or à 15 min, écart d'or et victoire), répartition par patch, premières relations simples. Docker à démarrer avec docker compose start (le conteneur a été recréé avec le nouveau chemin le 28 oct.). Il faudra sans doute ajouter jupyter / matplotlib au venv.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -92,8 +110,9 @@ Objectif : plusieurs milliers de parties (collect.py puis load.py). Avant : sort
 - .env : contient RIOT_API_KEY=... (clé de développement, expire toutes les 24 h) et, à partir de l'étape 6, DATABASE_URL=postgresql://lol:lol@localhost:5433/lol. Ignoré par Git.
 - .env.example : modèle versionné, sans vraie clé. Contient aussi RIOT_PLATFORM=euw1, RIOT_REGION=europe (pas encore utilisés par le code : BASE est écrit en dur) et DATABASE_URL (utilisé par src/check_db.py).
 - docker-compose.yml : la base PostgreSQL 16 dans Docker (voir « Étape 6 »).
-- src/riot_api.py et src/collect.py : client API et script de collecte (voir « Étape 7 faite »).
-- data/raw/ : parties brutes compressées (matches/, timelines/, players_done.txt). Ignoré par Git.
+- src/riot_api.py et src/collect.py : client API et script de collecte (voir « Étape 7 faite » et « Étape 9 faite »).
+- data/raw/ : parties brutes compressées (matches/, timelines/, players_done.txt, collect.lock). 5 000 parties, 401 Mo au 28 oct. Ignoré par Git.
+- data/logs/collect.log : journal horodaté de la collecte (ajouté à chaque lancement). Ignoré par Git.
 - src/check_db.py : test de connexion Python → PostgreSQL et présence des 7 tables.
 - src/load.py et src/quality.py : insertion en base et contrôles qualité (voir « Étape 8 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
@@ -150,7 +169,7 @@ Par équipe :
 - Rien pour l'instant. (Fait à l'étape 7 : get() sorti dans src/riot_api.py, région lue dans .env via RIOT_REGION. Les scripts d'exploration gardent leur propre get(), ce sont des scripts historiques.)
 
 ## Décision en attente
-- Sortir le dossier de OneDrive : OneDrive synchronise .venv et data/ (des milliers de fichiers), ce qui ralentit et peut bloquer des fichiers. À faire au plus tard avant l'étape 9 (collecte en fond de plusieurs milliers de parties : environ 85 Ko par partie, donc plusieurs centaines de Mo synchronisés par OneDrive). Procédure : fermer VS Code, supprimer .venv, déplacer le dossier (ex. C:\Users\pauld\projets\lol-analytics), le rouvrir dans VS Code, recréer le venv (python -m venv .venv), réinstaller (pip install -r requirements.txt), vérifier avec git status. Puis mettre à jour le chemin dans ce fichier.
+- Rien pour l'instant. (Fait le 28 oct. 2026 : dossier sorti de OneDrive vers C:\Users\pauld\projets\lol-analytics ; .venv supprimé puis recréé avec py -3.14 -m venv .venv, car un venv contient des chemins absolus. OneDrive demande alors de confirmer la suppression d'environ 6 380 éléments : c'est le .venv, répondre « Supprimer tous les éléments ».)
 
 ## Problèmes déjà rencontrés
 - KeyError 'RIOT_API_KEY' : .env était vide (fichier non sauvegardé, Ctrl+S)

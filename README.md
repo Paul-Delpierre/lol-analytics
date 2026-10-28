@@ -54,6 +54,21 @@ python src/collect.py --riot-id "GameName#TAG" --max-matches 20
 - **Retries**: network errors and 5xx responses are retried with exponential backoff.
 - **Resume**: files are written atomically and never downloaded twice; run the same command again to continue after a stop.
 
+### Background collection
+
+For a long run (several thousand matches, a few hours), start the collection in its own PowerShell window, outside the editor, and follow it from anywhere with the log file:
+
+```powershell
+.\.venv\Scripts\python.exe src\collect.py --riot-id "GameName#TAG" --max-matches 5000
+Get-Content data\logs\collect.log -Encoding utf8 -Wait -Tail 20   # follow progress from another window
+```
+
+- **Log file**: every message is also written with a timestamp to `data/logs/collect.log`, with a progress report (matches per hour, estimated end time) every 100 matches.
+- **No sleep**: the script asks Windows not to go to sleep while it runs (`SetThreadExecutionState`); the screen can still turn off.
+- **One run at a time**: a lock on `data/raw/collect.lock` refuses a second collection in the same folder. The OS releases it when the script stops, even after a crash.
+- **Long outages**: network errors and Riot 5xx are retried for about 4 minutes; after that, or when the 24 h development key expires, the script stops cleanly and the same command resumes it.
+- Then load the new matches with `python src/load.py` and check them with `python src/quality.py`.
+
 ## Loading into PostgreSQL
 
 `src/load.py` reads the raw files and fills the 7 tables of `sql/schema.sql`. `src/quality.py` then runs consistency checks on the database.
