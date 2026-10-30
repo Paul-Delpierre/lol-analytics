@@ -83,6 +83,15 @@ python src/quality.py     # read-only checks, prints OK / ATTENTION
 - **Checks before insertion**: remakes, wrong queue, incomplete teams, missing values or a timeline that does not match the game are rejected with a reason.
 - **Checks after insertion**: 2 teams and one winner per match, 10 players, no missing minute, total gold never decreasing, and timeline events matching the match summary (kills, towers, dragons).
 
+## Exploratory analysis
+
+`notebooks/01_exploration.ipynb` reads the database with SQL (aggregations run in PostgreSQL) and plots the main patterns with matplotlib, with 95 % confidence intervals. Findings on 4,907 matches:
+
+- **Gold at 15 min** is the strongest single signal: the blue side wins 7 % of games in the most behind decile and 94 % in the most ahead one (S-shaped curve).
+- **Early leads overlap**: gold, XP and kill differences at 15 min are strongly correlated (0.90 to 0.92), so a model must not read them as independent effects.
+- **Red side** wins 51.7 % of games (95 % CI: 50.3 % to 53.1 %) in this sample.
+- **Champions**: among 160 champions played at least 100 times, the number whose interval excludes 50 % is about what chance alone would produce.
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.

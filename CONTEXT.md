@@ -15,13 +15,15 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), et leurs dépendances
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), et leurs dépendances
+- Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 28 oct. 2026, fin de l'étape 9)
+## État d'avancement (mis à jour le 30 oct. 2026, fin de l'étape 10)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
+- Étape 10 « Analyse exploratoire (notebook) » faite le 30 oct. 2026 : notebooks/01_exploration.ipynb exécuté sur les 4 907 parties, conclusions écrites (voir « Étape 10 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -36,7 +38,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   11. 6c2f5f0 Etape 6 : PostgreSQL dans Docker
   12. 3aa562f Etape 7 : script de collecte (limites de debit, 429, reprise)
   13. Etape 8 : insertion en base et controles qualite (load.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul le 27 oct.
-  14. Etape 9 : collecte en fond (collect.py, riot_api.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul.
+  14. Etape 9 : collecte en fond (collect.py, riot_api.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul (2a52292, 46919ab).
+  15. Etape 10 : notebook d'analyse exploratoire (notebook, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -93,8 +96,26 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Patchs (à retenir pour l'analyse) : la boule de neige prend les 20 dernières parties classées de chaque joueur, donc certaines sont anciennes (de juillet 2025, patch 15.14, à octobre 2026). 16.21 : 1 450, 16.20 : 1 053, 16.19 : 421, 16.14 à 16.18 : 1 892, avant 16.14 : environ 90. Penser à filtrer ou contrôler par patch à l'étape 10.
 - Guide : Claude Doc « Étape 9 — Collecte en fond » (https://claude.ai/artifact/K1DSMirV5KudR2PawJMjHY).
 
-## Prochaine étape : étape 10, analyse exploratoire (notebook)
-Premier notebook dans notebooks/ : lire la base avec pandas (psycopg), distributions (durée, or à 15 min, écart d'or et victoire), répartition par patch, premières relations simples. Docker à démarrer avec docker compose start (le conteneur a été recréé avec le nouveau chemin le 28 oct.). Il faudra sans doute ajouter jupyter / matplotlib au venv.
+## Étape 10 faite : analyse exploratoire (30 oct. 2026)
+- notebooks/01_exploration.ipynb (écrit par Claude, testé dans le cloud sur 613 parties, exécuté par Paul sur toute la base, résultats enregistrés dans le fichier et commités pour que GitHub affiche les graphiques ; aucun identifiant de joueur dedans).
+- Structure : query(sql) (psycopg -> DataFrame, une connexion par requête ; pas pd.read_sql, qui veut SQLAlchemy) et prop_ci(k, n) (proportion + IC 95 % par approximation normale), puis une section par question : vue d'ensemble/patchs, durées, côté bleu, état à 15 min, premiers objectifs, champions, joueurs répétés, conclusions. Le SQL fait les agrégations, Python ne reçoit que des petits résultats.
+- État à 15 min = écarts bleu − rouge : or, XP, CS (participant_frames, minute = 15), kills, bâtiments, plaques, dragons (events, timestamp_ms < 900 000). Requête avec deux CTE (frames15, events15), astuce CASE team_id = 100 THEN 1 ELSE -1, FILTER (WHERE event_type = ...). Courbes de victoire par déciles (pd.qcut) avec IC.
+- Résultats (4 907 parties) :
+  - Patchs 16.14 à 16.21 = 98 % des parties (≈ 90 plus anciennes, depuis le 19 juil. 2025). Durée médiane 30 min ; 58 parties < 15 min ; pic à 15-16 min (109 parties, abandons).
+  - Bleu 48,3 % (IC 46,9-49,7) : léger avantage rouge ; le rouge a aussi plus de dragons avant 15 min (écart moyen −0,17).
+  - Écart d'or à 15 min : 6,8 % de victoires dans le décile le plus en retard, 94,2 % dans le plus en avance. Corrélation avec la victoire : or 0,52, XP 0,50, kills 0,48, plaques 0,44, CS 0,40, bâtiments 0,40, dragons 0,34. Écarts très liés entre eux (or-XP 0,92, or-kills 0,90, bâtiments-plaques 0,89).
+  - Premiers objectifs (victoire de l'équipe qui l'obtient) : sang 56,8 %, dragon 62,0 %, tour 68,5 %, baron 80,5 %.
+  - Champions : 160 joués ≥ 100 fois, 10 dont l'IC exclut 50 % ≈ ce que le hasard donne (8 attendus) : rien de concluant.
+  - 79 % des places = joueurs vus une seule fois : parties presque indépendantes.
+- À corriger à l'étape 11 : towers_diff compte tous les BUILDING_KILL, donc aussi les inhibiteurs (renommer ou filtrer building_type = 'TOWER_BUILDING').
+- Incident pendant l'exécution : une cellule (comptage des 7 tables) est restée bloquée plusieurs minutes alors que la base était inactive (docker stats : 4,8 % CPU) ; Paul a fini par l'exécuter en entier, cause non identifiée. Si ça recommence : Interrupt, lire la fin du KeyboardInterrupt (connect ou execute ?), et pg_stat_activity.
+- Guide : Claude Doc « Étape 10 — Analyse exploratoire » (https://claude.ai/artifact/GYeByCahxvkotSmdMNn5M5).
+
+## Prochaine étape : étape 11, 2-3 questions testées
+Régression logistique avec variables de contrôle et intervalles de confiance (statsmodels à ajouter au venv), sur les parties des patchs 16.14 à 16.21 qui durent au moins 15 min. Questions retenues dans la partie 9 du notebook :
+1. À écart d'or égal, l'XP, les kills et les dragons ajoutent-ils quelque chose ? (écarts très corrélés : surveiller la stabilité des coefficients)
+2. La première tour garde-t-elle un effet une fois l'écart d'or à 15 min pris en compte ?
+3. L'avantage du côté rouge (51,7 %) tient-il en contrôlant le patch, et passe-t-il par les dragons ?
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -122,7 +143,7 @@ Premier notebook dans notebooks/ : lire la base avec pandas (psycopg), distribut
 - PLAN.md : plan par étapes avec cases à cocher.
 - CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
 - sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).
-- notebooks/, tests/ : vides (un .gitkeep chacun).
+- notebooks/01_exploration.ipynb : analyse exploratoire (voir « Étape 10 faite »). tests/ : vide (un .gitkeep).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}
