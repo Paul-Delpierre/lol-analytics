@@ -19,11 +19,12 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 30 oct. 2026, fin de l'étape 10)
+## État d'avancement (mis à jour le 31 oct. 2026, fin de l'étape 11)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
 - Étape 10 « Analyse exploratoire (notebook) » faite le 30 oct. 2026 : notebooks/01_exploration.ipynb exécuté sur les 4 907 parties, conclusions écrites (voir « Étape 10 faite »).
+- Étape 11 « 2-3 questions testées » faite le 31 oct. 2026 : notebooks/02_regression.ipynb (régression logistique, statsmodels) exécuté sur 4 762 parties, conclusions écrites (voir « Étape 11 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -39,7 +40,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   12. 3aa562f Etape 7 : script de collecte (limites de debit, 429, reprise)
   13. Etape 8 : insertion en base et controles qualite (load.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul le 27 oct.
   14. Etape 9 : collecte en fond (collect.py, riot_api.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul (2a52292, 46919ab).
-  15. Etape 10 : notebook d'analyse exploratoire (notebook, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul.
+  15. Etape 10 : notebook d'analyse exploratoire (notebook, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul (4da0dc8).
+  16. Etape 11 : régression logistique (notebook 02, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -107,15 +109,26 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   - Premiers objectifs (victoire de l'équipe qui l'obtient) : sang 56,8 %, dragon 62,0 %, tour 68,5 %, baron 80,5 %.
   - Champions : 160 joués ≥ 100 fois, 10 dont l'IC exclut 50 % ≈ ce que le hasard donne (8 attendus) : rien de concluant.
   - 79 % des places = joueurs vus une seule fois : parties presque indépendantes.
-- À corriger à l'étape 11 : towers_diff compte tous les BUILDING_KILL, donc aussi les inhibiteurs (renommer ou filtrer building_type = 'TOWER_BUILDING').
+- towers_diff comptait tous les BUILDING_KILL, donc aussi les inhibiteurs : corrigé à l'étape 11 (filtre building_type = 'TOWER_BUILDING').
 - Incident pendant l'exécution : une cellule (comptage des 7 tables) est restée bloquée plusieurs minutes alors que la base était inactive (docker stats : 4,8 % CPU) ; Paul a fini par l'exécuter en entier, cause non identifiée. Si ça recommence : Interrupt, lire la fin du KeyboardInterrupt (connect ou execute ?), et pg_stat_activity.
 - Guide : Claude Doc « Étape 10 — Analyse exploratoire » (https://claude.ai/artifact/GYeByCahxvkotSmdMNn5M5).
 
-## Prochaine étape : étape 11, 2-3 questions testées
-Régression logistique avec variables de contrôle et intervalles de confiance (statsmodels à ajouter au venv), sur les parties des patchs 16.14 à 16.21 qui durent au moins 15 min. Questions retenues dans la partie 9 du notebook :
-1. À écart d'or égal, l'XP, les kills et les dragons ajoutent-ils quelque chose ? (écarts très corrélés : surveiller la stabilité des coefficients)
-2. La première tour garde-t-elle un effet une fois l'écart d'or à 15 min pris en compte ?
-3. L'avantage du côté rouge (51,7 %) tient-il en contrôlant le patch, et passe-t-il par les dragons ?
+## Étape 11 faite : 3 questions testées par régression logistique (31 oct. 2026)
+- notebooks/02_regression.ipynb (écrit par Claude, testé dans le cloud sur 3 000 parties synthétiques, exécuté par Paul sur la vraie base, résultats enregistrés dans le fichier). statsmodels 0.15.0 ajouté au venv (+ scipy, patsy, formulaic ; requirements.txt régénéré).
+- Pourquoi statsmodels et pas scikit-learn : on veut expliquer (coefficients, IC, p-valeurs) ; scikit-learn vise la prédiction (étape 12).
+- Jeu de données : une ligne par partie vue du bleu (la ligne du rouge = même partie retournée, lignes dépendantes), écarts bleu − rouge à 15 min (gold_k et xp_k en milliers, kills, tours = TOWER_BUILDING seulement, plaques, dragons, CS/10), first_tower15 = bleu / rouge / aucune avant 15 min (calculé dans events avec DISTINCT ON ; pas teams.first_tower, qui porte sur toute la partie = fuite d'information), patch. Filtres : patchs 16.14 à 16.21 et minute 15 présente → 4 762 parties sur 4 907. Comme tout est bleu − rouge, la constante du modèle = avantage de côté.
+- Outils : fit(formule) (smf.logit), odds_table (odds ratios + IC 95 % + p-valeurs), lr_test (rapport de vraisemblance entre modèles emboîtés), logistic. Codages : C(first_tower15, Treatment('aucune')), C(patch, Sum) (constante = moyenne sur les patchs).
+- Résultats :
+  - Or seul : odds ratio 1,44 par 1 000 or (IC 1,40-1,47) ; 47,5 % à écart nul, 56,5 % à +1 000, 79,3 % à +4 000. La courbe passe dans les IC des 10 déciles.
+  - Q1 : ajouter XP + kills + dragons améliore le modèle (LR 109, 3 ddl, p < 0,001 ; AIC 5 114 → 5 010 ; pseudo-R² 0,225 → 0,242). À or égal : dragons 1,30 par dragon (≈ 1 000 or), XP 1,10 par 1 000 XP, kills 0,99 (rien), tours, plaques, CS : rien. VIF or 9,8, XP 6,6, kills 5,8.
+  - Q2 : première tour avant 15 min : 2,53 sans contrôle, 0,94 (IC 0,79-1,13) à or égal → aucun effet propre au-delà de l'or qu'elle rapporte.
+  - Q3 : bleu 48,5 % (IC 47,0-49,9, p = 0,03) ; patch sans effet (LR p = 0,45), avec patch 48,6 % (p = 0,10) ; à écart de dragons égal 50,9 % (IC 49,1-52,7) → l'avantage rouge, faible, passe par les dragons.
+  - Modèle complet : or 1,33, XP 1,11, dragons 1,30, le reste nul ; pseudo-R² 0,243. Erreurs types robustes HC1 à moins de 3 % des classiques.
+- Limites : associations contrôlées, pas des causes (niveau, compositions non mesurés) ; parties pas tout à fait indépendantes ; une quinzaine de tests.
+- Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape11/build_nb.py. Guide : Claude Doc « Étape 11 — Régression logistique » (https://claude.ai/artifact/2etVcQzSA2VfDTLtY9JD5j).
+
+## Prochaine étape : étape 12, features à 15 min
+Premier point de la période « modèle à 15 min → v1 publique » : construire le jeu de features à 15 min (or, XP, objectifs, kills…) dans un module Python réutilisable (src/), pour la régression logistique vs LightGBM qui suit. D'après l'étape 11 : or, XP et dragons portent l'information en logistique ; garder aussi kills, tours, plaques, CS pour LightGBM (effets non linéaires possibles). Côté et patch en contrôles, effet attendu proche de zéro.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -143,7 +156,8 @@ Régression logistique avec variables de contrôle et intervalles de confiance (
 - PLAN.md : plan par étapes avec cases à cocher.
 - CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
 - sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).
-- notebooks/01_exploration.ipynb : analyse exploratoire (voir « Étape 10 faite »). tests/ : vide (un .gitkeep).
+- notebooks/01_exploration.ipynb : analyse exploratoire (voir « Étape 10 faite »).
+- notebooks/02_regression.ipynb : tests par régression logistique (voir « Étape 11 faite »). tests/ : vide (un .gitkeep).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}

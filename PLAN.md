@@ -15,7 +15,7 @@
 
 ## 23 nov. – 6 déc. : analyse et stats
 - [x] Analyse exploratoire (notebook)
-- [ ] 2-3 questions testées : régression logistique avec variables de contrôle, intervalles de confiance
+- [x] 2-3 questions testées : régression logistique avec variables de contrôle, intervalles de confiance
 
 ## 7 – 20 déc. : modèle à 15 min → v1 publique
 - [ ] Features à 15 min (or, XP, objectifs, kills…)

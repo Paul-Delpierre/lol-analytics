@@ -92,6 +92,16 @@ python src/quality.py     # read-only checks, prints OK / ATTENTION
 - **Red side** wins 51.7 % of games (95 % CI: 50.3 % to 53.1 %) in this sample.
 - **Champions**: among 160 champions played at least 100 times, the number whose interval excludes 50 % is about what chance alone would produce.
 
+## Statistical tests
+
+`notebooks/02_regression.ipynb` tests three questions with logistic regression (statsmodels): one row per match seen from the blue side, blue-minus-red differences at 15 min, odds ratios with 95 % confidence intervals and likelihood-ratio tests between nested models. Results on 4,762 matches (patches 16.14 to 16.21, at least 15 min):
+
+- **Gold almost sums up the lead.** Each 1,000 gold ahead at 15 min multiplies the odds of winning by 1.44. At equal gold, **dragons still matter** (odds ratio 1.30 per dragon ahead, about the weight of 1,000 gold) and XP adds a little (1.10 per 1,000 XP); kills, towers, plates and CS add nothing beyond the gold they bring.
+- **First tower has no effect of its own.** Taking the first tower before 15 min goes with 2.5 times higher odds, but at equal gold the effect disappears (0.94, 95 % CI 0.79 to 1.13): it is a sign of the lead, not an extra cause.
+- **The red-side edge is small and goes through dragons.** Blue wins 48.5 % of games (95 % CI 47.0 to 49.9 %); the patch does not change this, and at equal dragon difference the edge is gone (50.9 %, 95 % CI 49.1 to 52.7 %).
+
+These are controlled associations, not causal effects: player skill and team compositions are not measured.
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.
