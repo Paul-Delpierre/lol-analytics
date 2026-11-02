@@ -19,12 +19,13 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 31 oct. 2026, fin de l'étape 11)
+## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 12)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
 - Étape 10 « Analyse exploratoire (notebook) » faite le 30 oct. 2026 : notebooks/01_exploration.ipynb exécuté sur les 4 907 parties, conclusions écrites (voir « Étape 10 faite »).
 - Étape 11 « 2-3 questions testées » faite le 31 oct. 2026 : notebooks/02_regression.ipynb (régression logistique, statsmodels) exécuté sur 4 762 parties, conclusions écrites (voir « Étape 11 faite »).
+- Étape 12 « Features à 15 min » + score de scaling faite le 2 nov. 2026 : src/features.py lancé sur la vraie base (voir « Étape 12 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -41,7 +42,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   13. Etape 8 : insertion en base et controles qualite (load.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul le 27 oct.
   14. Etape 9 : collecte en fond (collect.py, riot_api.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul (2a52292, 46919ab).
   15. Etape 10 : notebook d'analyse exploratoire (notebook, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul (4da0dc8).
-  16. Etape 11 : régression logistique (notebook 02, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul.
+  16. Etape 11 : régression logistique (notebook 02, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul (588fc58).
+  17. Etape 12 : features à 15 min (src/features.py, README, PLAN, CONTEXT) — commit + push par Paul.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -127,8 +129,19 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Limites : associations contrôlées, pas des causes (niveau, compositions non mesurés) ; parties pas tout à fait indépendantes ; une quinzaine de tests.
 - Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape11/build_nb.py. Guide : Claude Doc « Étape 11 — Régression logistique » (https://claude.ai/artifact/2etVcQzSA2VfDTLtY9JD5j).
 
-## Prochaine étape : étape 12, features à 15 min
-Premier point de la période « modèle à 15 min → v1 publique » : construire le jeu de features à 15 min (or, XP, objectifs, kills…) dans un module Python réutilisable (src/), pour la régression logistique vs LightGBM qui suit. D'après l'étape 11 : or, XP et dragons portent l'information en logistique ; garder aussi kills, tours, plaques, CS pour LightGBM (effets non linéaires possibles). Côté et patch en contrôles, effet attendu proche de zéro.
+## Étape 12 faite : features à 15 min + score de scaling (31 oct. – 2 nov. 2026)
+- src/features.py (écrit par Claude, testé dans le cloud sur 3 000 parties synthétiques, lancé par Paul sur la vraie base le 2 nov.). Module importable par l'étape 13 : `from features import build_features, fit_scaling, add_scaling, FEATURES`. Lancé seul (python src/features.py) : construit le jeu, 5 contrôles, résumé, corrélations, démo du score de scaling.
+- build_features(minute=15, patch_min=14, patch_max=21) : une requête SQL à 5 CTE (frames : or/XP/CS à la minute 15, total et par poste ; ev : events avant 15 min avec +1/−1 ; counts ; firsts avec DISTINCT ON ; champs : array_agg des 5 champions par équipe), HAVING count(*) = 10, coalesce 0, requête paramétrée. Une ligne par partie vue du bleu, triée par date. Le paramètre minute servira au GRU.
+- Listes de colonnes (garde-fou contre la fuite) : FEATURES = 11 écarts (gold_k, xp_k, cs_diff, kills, tours, plaques, dragons, larves, first_blood / first_tower / first_dragon codés +1/−1/0) ; ROLE_FEATURES = or par poste (somme = gold_k, donc pas avec gold_k en logistique, pour LightGBM) ; SCALING_FEATURES = scaling_diff, gold_x_scaling ; INFO_COLUMNS = match_id, game_creation, patch, duration_min (connue en fin de partie : jamais une feature), blue_champs, red_champs.
+- Héraut retiré le 2 nov. : heralds_diff valait 0 dans les 4 762 parties (aucun héraut tué avant 15 min sur ces patchs).
+- time_split(df, 0.2) : découpage chronologique (les 20 % les plus récentes en test).
+- Score de scaling : fit_scaling(train) = note par champion = 100 × (taux de victoire lissé dans les parties longues − dans les courtes), longue = durée ≥ médiane du train, lissage (victoires + 20 × 0,5) / (parties + 20) ; add_scaling(df, notes) = somme par équipe, scaling_diff = bleu − rouge, gold_x_scaling = gold_k × scaling_diff ; champion inconnu = 0. Séparé en fit / apply comme scikit-learn : à l'étape 13, les notes seront réapprises dans chaque pli.
+- Résultats sur la vraie base : 4 762 parties, bleu 48,5 %, 5/5 contrôles OK. Corrélations avec la victoire : or 0,52, XP 0,50, kills 0,48, plaques 0,43, CS 0,40, tours 0,40, première tour 0,35, dragons 0,34, or bot 0,32 … top 0,26, support 0,25, premier dragon 0,23, premier sang 0,14, larves 0,13. Écart de dragons entre −2 et +2 avant 15 min.
+- Scaling (3 809 parties d'entraînement, 953 de test) : en tête Belveth 20,1, Braum 19,0, Sona 16,9, Ivern, Evelynn, Kayle, Orianna, Kassadin, Vladimir, Smolder ; en bas Kled −14,7, Kennen, Mordekaiser, Diana, KogMaw, Ekko, Blitzcrank, Xayah, Gragas, Lulu (cohérent avec le jeu). Équipe au meilleur score sur le test : 53,6 % des parties longues, 49,1 % des courtes ; avec fuite (notes apprises avec le test) 59,1 % / 42,4 % → l'écart paraît presque 4 fois plus grand. Écart propre de 4,5 points proche du bruit (≈ 950 parties de test) : à juger en validation croisée.
+- README : section « Features at 15 minutes ». Guide : Claude Doc « Étape 12 — Features à 15 min » (https://claude.ai/artifact/LcgED1hpDeLav5ucncx3xF).
+
+## Prochaine étape : étape 13, régression logistique vs LightGBM
+Comparer une régression logistique (scikit-learn) et LightGBM sur les features de src/features.py, en validation croisée sans fuite : notes de scaling réapprises dans chaque pli (sur la partie entraînement du pli seulement), découpage qui respecte l'ordre du temps. Mesurer l'apport du score de scaling (avec / sans). Paquets à installer : scikit-learn, lightgbm (vérifier les roues Windows pour Python 3.14).
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -149,6 +162,7 @@ Premier point de la période « modèle à 15 min → v1 publique » : construir
 - data/logs/collect.log : journal horodaté de la collecte (ajouté à chaque lancement). Ignoré par Git.
 - src/check_db.py : test de connexion Python → PostgreSQL et présence des 7 tables.
 - src/load.py et src/quality.py : insertion en base et contrôles qualité (voir « Étape 8 faite »).
+- src/features.py : features à 15 min et score de scaling, importé par les modèles (voir « Étape 12 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).

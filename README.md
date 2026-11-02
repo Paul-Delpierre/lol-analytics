@@ -102,6 +102,25 @@ python src/quality.py     # read-only checks, prints OK / ATTENTION
 
 These are controlled associations, not causal effects: player skill and team compositions are not measured.
 
+## Features at 15 minutes
+
+`src/features.py` builds the dataset used by the prediction models: one row per match seen from the blue side, with blue-minus-red differences at 15 min, computed by a single SQL query (aggregations in PostgreSQL).
+
+```bash
+python src/features.py    # builds the dataset, runs checks, shows the scaling score
+```
+
+- **Game state** (`FEATURES`): gold, XP, CS, kills, towers, plates, dragons and void grubs taken before 15 min, plus first blood / first tower / first dragon coded +1 (blue), -1 (red), 0 (none). No Rift Herald is killed before 15 min in this sample, so it is left out.
+- **Gold by role** (`ROLE_FEATURES`): the gold difference per position. It adds up to total gold, so it is meant for tree models, not alongside total gold in a logistic regression.
+- **No leakage by design**: only events before 15 min are used, and columns known only after the game (duration) are kept apart from the feature lists.
+- **Champion scaling score**: each champion gets a score = its win rate in long games minus its win rate in short games (split at the median duration), smoothed towards 50 % so that rarely played champions do not get extreme scores by chance. Team scores are summed, and the model sees the blue-minus-red difference and its interaction with the gold difference. The scores use the match outcome, so they are **learned on training matches only** (`fit_scaling`) and then applied to test matches (`add_scaling`).
+
+Results on 4,762 matches (time-ordered split: 3,809 older matches to learn the scores, 953 most recent to test):
+
+- The highest scores go to known late-game champions (Kayle, Kassadin, Vladimir, Smolder, Orianna) and the lowest to early-game ones (Kled, Kennen, Mordekaiser, Diana), which is a sanity check on the method.
+- On test matches, the team with the better scaling score wins 53.6 % of long games and 49.1 % of short ones. If the scores are learned including the test matches (leakage), the gap looks almost four times larger (59.1 % vs 42.4 %).
+- With about 950 test matches, a 4.5-point gap is close to the noise level: whether the score improves predictions is tested with cross-validation in the next step.
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.

@@ -18,7 +18,8 @@
 - [x] 2-3 questions testées : régression logistique avec variables de contrôle, intervalles de confiance
 
 ## 7 – 20 déc. : modèle à 15 min → v1 publique
-- [ ] Features à 15 min (or, XP, objectifs, kills…)
+- [x] Features à 15 min (or, XP, objectifs, kills…)
+- [x] Score de scaling des compositions (calculé sur les parties d'entraînement) + interaction avec l'écart d'or
 - [ ] Régression logistique vs LightGBM, validation croisée sans fuite
 - [ ] Calibration (Brier, courbe de fiabilité), SHAP
 - [ ] README en anglais avec résultats et figures
