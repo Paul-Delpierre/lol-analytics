@@ -146,6 +146,16 @@ Test-set results (953 matches):
 
 Chosen model: logistic regression on the 11 features. Next: calibration (reliability curve) and SHAP explanations.
 
+### Trying to improve the 15-minute model
+
+`notebooks/04_improvements.ipynb` tests whether more data or more features would beat the logistic regression above (same protocol, test set used once):
+
+- **Learning curve**: training the logistic regression on 1,600 then 3,175 matches only moves validation log loss from 0.524 to 0.523 (−0.0008 for the last 775 matches). LightGBM is still improving but starts about 0.01 behind. Collecting many more matches would not change the picture for this model.
+- **New features** (`build_extra_features` in `src/features.py`): gold at 10 min and gold trend, level difference, richest-player gold gap, players dead at 15:00, dragons by type. They are 0.80–0.89 correlated with the gold difference. Two groups passed a selection rule fixed in advance (better on at least 4 of 5 folds), but the gain vanished on the test set (+0.003 log loss, 95 % CI −0.002 to +0.007): a small cross-validation gain after trying five groups is mostly luck.
+- **Regularization and ensembling** (logistic `C`, average of logistic and LightGBM) do not help either.
+
+At 15 minutes, the game state summarized as team differences gives about 0.52 log loss and 74 % accuracy, and the limit comes from the information available, not from the model. The 11-feature logistic regression is kept.
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.

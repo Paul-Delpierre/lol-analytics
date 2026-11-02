@@ -21,7 +21,7 @@
 - [x] Features à 15 min (or, XP, objectifs, kills…)
 - [x] Score de scaling des compositions (calculé sur les parties d'entraînement) + interaction avec l'écart d'or
 - [x] Régression logistique vs LightGBM, validation croisée sans fuite
-- [ ] Améliorer le modèle : courbe d'apprentissage, nouvelles variables (or 10→15 min, dragons, objets, wards), plus de parties si la courbe le justifie
+- [x] Améliorer le modèle : courbe d'apprentissage, nouvelles variables (or 10→15 min, dragons…) — aucun gain sur le test, la logistique de l'étape 13 est gardée
 - [ ] Calibration (Brier, courbe de fiabilité), SHAP
 - [ ] README en anglais avec résultats et figures
 

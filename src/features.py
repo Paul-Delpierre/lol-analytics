@@ -12,6 +12,8 @@ Ce module sert à deux choses :
 
 Les notebooks et l'étape 13 (régression logistique vs LightGBM) importent ce module :
     from features import build_features, fit_scaling, add_scaling, FEATURES
+L'étape 13 bis y ajoute build_extra_features() : des variables candidates
+(or à 10 min, niveaux, dragons par type, joueurs en vie, joueur le plus riche).
 
 Lancé seul, il construit le jeu de données, fait des contrôles et montre le score
 de scaling sur un découpage chronologique 80 % / 20 % :
@@ -255,6 +257,100 @@ def add_scaling(df, scores):
     # Interaction : l'effet de l'or dépend-il de l'écart de scaling ?
     out["gold_x_scaling"] = out["gold_k"] * out["scaling_diff"]
     return out
+
+
+# ---------------------------------------------------------------------------
+# 2 bis. Variables supplémentaires (étape 13 bis)
+# ---------------------------------------------------------------------------
+# Groupes de variables candidates : chaque groupe est testé séparément dans le
+# notebook 04 (ajouté au modèle de base, gardé seulement s'il aide en validation).
+EXTRA_GROUPS = {
+    "or à 10 min": ["gold10_k", "gold_trend_k"],      # trend = or à 15 − or à 10
+    "niveaux": ["level_diff"],                         # somme des niveaux bleu − rouge
+    "joueur le plus riche": ["top_gold_k"],
+    "joueurs en vie à 15:00": ["alive_diff"],
+    # "dragons par type" : colonnes drag_<type>_diff, ajoutées selon les types présents
+}
+
+EXTRA_SQL = """
+WITH f AS (
+    SELECT f.match_id, f.minute, f.total_gold, f.level,
+           CASE WHEN p.team_id = 100 THEN 1 ELSE -1 END AS sign, p.team_id
+    FROM participant_frames f
+    JOIN participants p USING (match_id, participant_id)
+    WHERE f.minute IN (%(early)s, %(minute)s)
+),
+state AS (
+    SELECT match_id,
+           sum(sign * total_gold) FILTER (WHERE minute = %(early)s)  AS gold_early,
+           sum(sign * level)      FILTER (WHERE minute = %(minute)s) AS level_diff,
+           max(total_gold) FILTER (WHERE minute = %(minute)s AND team_id = 100)
+             - max(total_gold) FILTER (WHERE minute = %(minute)s AND team_id = 200) AS top_gold
+    FROM f
+    GROUP BY match_id
+),
+deaths AS (
+    -- Joueurs tués dans les 30 dernières secondes avant la minute choisie :
+    -- à ce stade de la partie, ils attendent encore leur réapparition.
+    SELECT e.match_id,
+           count(*) FILTER (WHERE p.team_id = 200) - count(*) FILTER (WHERE p.team_id = 100)
+             AS alive_diff
+    FROM events e
+    JOIN participants p ON p.match_id = e.match_id AND p.participant_id = e.victim_id
+    WHERE e.event_type = 'CHAMPION_KILL'
+      AND e.timestamp_ms >= %(cutoff_ms)s - 30000 AND e.timestamp_ms < %(cutoff_ms)s
+    GROUP BY e.match_id
+)
+SELECT s.match_id, s.gold_early, s.level_diff, s.top_gold,
+       coalesce(d.alive_diff, 0) AS alive_diff
+FROM state s
+LEFT JOIN deaths d USING (match_id)
+"""
+
+DRAGONS_SQL = """
+SELECT match_id, monster_sub_type AS dragon,
+       sum(CASE WHEN killer_team_id = 100 THEN 1 ELSE -1 END) AS diff
+FROM events
+WHERE monster_type = 'DRAGON' AND timestamp_ms < %(cutoff_ms)s AND killer_team_id IS NOT NULL
+GROUP BY match_id, monster_sub_type
+"""
+
+
+def build_extra_features(df, minute=15, early=10, url=None):
+    """Ajoute à `df` (sortie de build_features) les variables candidates de l'étape 13 bis.
+
+    Requêtes séparées de FEATURES_SQL exprès : le jeu de l'étape 12 reste identique,
+    et chaque nouveau groupe peut être testé (et retiré) sans toucher au reste.
+    Renvoie (df enrichi, groupes) : groupes = EXTRA_GROUPS + le groupe des dragons par type.
+    """
+    params = {"minute": minute, "early": early, "cutoff_ms": minute * 60_000}
+    with psycopg.connect(url or database_url()) as conn:
+        cur = conn.execute(EXTRA_SQL, params)
+        extra = pd.DataFrame(cur.fetchall(), columns=[c.name for c in cur.description])
+        cur = conn.execute(DRAGONS_SQL, params)
+        drag = pd.DataFrame(cur.fetchall(), columns=[c.name for c in cur.description])
+
+    for col in ["gold_early", "level_diff", "top_gold", "alive_diff"]:
+        extra[col] = extra[col].astype(float)
+    out = df.merge(extra, on="match_id", how="left")
+    out["gold10_k"] = out["gold_early"].fillna(0) / 1000
+    out["gold_trend_k"] = out["gold_k"] - out["gold10_k"]
+    out["top_gold_k"] = out["top_gold"].fillna(0) / 1000
+    out[["level_diff", "alive_diff"]] = out[["level_diff", "alive_diff"]].fillna(0)
+
+    # Dragons par type : une colonne par type rencontré (FIRE_DRAGON -> drag_fire_diff).
+    groups = dict(EXTRA_GROUPS)
+    if len(drag):
+        drag["diff"] = drag["diff"].astype(int)
+        wide = drag.pivot_table(index="match_id", columns="dragon", values="diff",
+                                aggfunc="sum", fill_value=0)
+        wide.columns = [f"drag_{str(c).replace('_DRAGON', '').lower()}_diff" for c in wide.columns]
+        out = out.merge(wide, left_on="match_id", right_index=True, how="left")
+        out[list(wide.columns)] = out[list(wide.columns)].fillna(0).astype(int)
+        groups["dragons par type"] = list(wide.columns)
+
+    out = out.drop(columns=["gold_early", "top_gold"])
+    return out, groups
 
 
 # ---------------------------------------------------------------------------
