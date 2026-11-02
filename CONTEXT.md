@@ -19,7 +19,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 13 bis)
+## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 14)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -28,6 +28,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape 12 « Features à 15 min » + score de scaling faite le 2 nov. 2026 : src/features.py lancé sur la vraie base (voir « Étape 12 faite »).
 - Étape 13 « Régression logistique vs LightGBM » faite le 2 nov. 2026 : notebooks/03_models.ipynb exécuté, la logistique gagne, le scaling n'aide pas (voir « Étape 13 faite »).
 - Étape 13 bis « Améliorer le modèle » faite le 2 nov. 2026 : notebooks/04_improvements.ipynb, aucun gain sur le test, collecte supplémentaire inutile (voir « Étape 13 bis faite »).
+- Étape 14 « Calibration, SHAP » faite le 2 nov. 2026 : notebooks/05_calibration.ipynb, probabilités de la logistique déjà bien calibrées, pas de recalibrage (voir « Étape 14 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -47,6 +48,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   16. Etape 11 : régression logistique (notebook 02, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul (588fc58).
   17. 88b51ef Etape 12 : features à 15 min (src/features.py, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
   18. 0b41037 Etape 13 : régression logistique vs LightGBM, CV sans fuite (src/models.py, notebooks/03_models.ipynb, README, PLAN, CONTEXT, requirements.txt) — commit + push par Paul le 2 nov.
+  19. 19e91d5 Etape 13 bis : tentatives d'amélioration, courbe d'apprentissage et nouvelles variables (src/features.py, notebooks/04_improvements.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -162,8 +164,19 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Résultats : courbe presque plate pour la logistique (0,5242 à 1 600 parties → 0,5226 à 3 175), LightGBM descend encore (0,5410 → 0,5325) mais reste ~0,01 derrière → collecte inutile pour ce modèle. Nouvelles variables corrélées à 0,80-0,89 avec l'or ; gardées par la règle : joueur le plus riche (−0,0020) et or à 10 min (−0,0007) ; avec C = 0,1, CV 0,5297 → 0,5258 ; MAIS test 0,5270 contre 0,5242 (+0,003, IC −0,002 à +0,007) → gain = bruit (malédiction du gagnant). Dragons par type pires (+0,006). LightGBM toutes variables 0,5376 en CV, 0,530 en test. Moyenne Logit + LightGBM 0,528.
 - Décision : modèle retenu inchangé = logistique de l'étape 13 (11 variables, C = 1). Plafond à 15 min ≈ 0,52 de log loss / 74 % ; le gain sûr viendra de prédire plus tard (GRU en janvier). README : sous-section « Trying to improve the 15-minute model ».
 
-## Prochaine étape : étape 14, calibration et SHAP
-Sur la régression logistique retenue (et LightGBM pour comparer) : score de Brier, courbe de fiabilité (« quand le modèle dit 70 %, le bleu gagne-t-il 70 % du temps ? »), éventuellement recalibrage ; explications SHAP (globales et pour quelques parties). Réutiliser src/models.py. Paquet à installer : shap (vérifier la roue Windows pour Python 3.14).
+## Étape 14 faite : calibration et explications SHAP (2 nov. 2026)
+- src/explain.py et notebooks/05_calibration.ipynb (écrits par Claude, testés dans le cloud sur une PostgreSQL 16 locale avec 4 800 parties synthétiques, exécutés par Paul sur la vraie base, conclusions écrites dans la partie 6). Aucun paquet ajouté : statsmodels était déjà là, et le paquet shap n'est PAS utilisé.
+- explain.py, partie calibration : reliability_table (10 déciles de probabilité annoncée, taux réel + IC de Wilson), expected_calibration_error (ECE), calibration_fit (pente et ordonnée de calibration avec IC, statsmodels), oof_predictions (prédictions hors pli avec les plis chronologiques de models.py), fit_recalibrator (Platt = LogisticRegression(C=np.inf) sur logit(p), ou isotonique). penalty=None est déprécié depuis scikit-learn 1.8 : utiliser C=np.inf.
+- explain.py, partie SHAP : linear_contributions (logistique : coefficient × (valeur − moyenne d'entraînement) / écart type, en log-odds ; c'est la valeur de SHAP exacte d'un modèle linéaire), tree_contributions (LightGBM : booster_.predict(pred_contrib=True) = TreeSHAP), explain_game (6 variables qui pèsent le plus + probabilité après chaque étape). Vérifié dans le cloud : mêmes valeurs que shap.LinearExplainer / TreeExplainer (écart < 1e-15). Base + somme des contributions = prédiction exacte en log-odds (écart 2e-16).
+- Résultats calibration (test, 953 parties) : Logit Brier 0,175, ECE 2,8 points, pente 1,04 (IC 0,89 à 1,18), ordonnée 0,02 (IC −0,13 à 0,17), 10 déciles sur 10 dans l'IC ; LightGBM Brier 0,177, ECE 4,2 points, pente 1,06, 9 / 10. 35 % des parties annoncées à < 20 % ou > 80 %.
+- Recalibrage : aucun gardé (règle : meilleur au test ET IC bootstrap qui exclut 0). Platt +0,001 (IC −0,001 à +0,003), isotonique +0,007. Piège mesuré : les prédictions hors pli ont une pente de 0,93 (IC 0,86 à 1,00), trop sûres d'elles car venant de modèles entraînés sur moins de parties ; le modèle final n'a pas ce défaut (1,04 au test).
+- SHAP (moyenne |contribution|, log-odds, Logit) : or 0,82, dragons 0,41, XP 0,28, premier dragon 0,16, le reste < 0,10. LightGBM : même ordre (or, XP, dragons). Kills, tours, CS ont un petit effet négatif à or égal (l'or les compte déjà) : SHAP explique le modèle, pas une cause. Or et XP corrélés : lire leur contribution comme un bloc.
+- Plus grosse surprise du test : bleu annoncé à 96 %, rouge gagnant. Le décile annoncé 91 % perd 5 % du temps : attendu.
+- Décision : logistique de l'étape 13 gardée SANS recalibrage ; l'appli affichera sa probabilité telle quelle et l'explication linear_contributions + explain_game.
+- README : section « Calibration and explanations ». Guide : Claude Doc « Étape 14 : calibration et SHAP — guide » (https://claude.ai/artifact/H8NcYs6NpcFituLJ3acUe8). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape14/build_nb05.py.
+
+## Prochaine étape : README en anglais avec résultats et figures
+Dernière ligne du bloc « 7 – 20 déc. » (v1 publique) : README en anglais propre, avec les résultats des étapes 10 à 14 et quelques figures (exportées des notebooks dans un dossier docs/ ou figures/), puis on passe au deep learning (janvier).
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -186,6 +199,7 @@ Sur la régression logistique retenue (et LightGBM pour comparer) : score de Bri
 - src/load.py et src/quality.py : insertion en base et contrôles qualité (voir « Étape 8 faite »).
 - src/features.py : features à 15 min et score de scaling, importé par les modèles (voir « Étape 12 faite ») ; variables candidates build_extra_features (voir « Étape 13 bis faite »).
 - src/models.py : modèles, préparation sans fuite, validation croisée, bootstrap (voir « Étape 13 faite »).
+- src/explain.py : calibration (courbe de fiabilité, recalibrage) et valeurs de SHAP (voir « Étape 14 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
@@ -196,7 +210,8 @@ Sur la régression logistique retenue (et LightGBM pour comparer) : score de Bri
 - notebooks/01_exploration.ipynb : analyse exploratoire (voir « Étape 10 faite »).
 - notebooks/02_regression.ipynb : tests par régression logistique (voir « Étape 11 faite »).
 - notebooks/03_models.ipynb : logistique vs LightGBM (voir « Étape 13 faite »).
-- notebooks/04_improvements.ipynb : courbe d'apprentissage et nouvelles variables (voir « Étape 13 bis faite »). tests/ : vide (un .gitkeep).
+- notebooks/04_improvements.ipynb : courbe d'apprentissage et nouvelles variables (voir « Étape 13 bis faite »).
+- notebooks/05_calibration.ipynb : calibration et explications SHAP (voir « Étape 14 faite »). tests/ : vide (un .gitkeep).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}

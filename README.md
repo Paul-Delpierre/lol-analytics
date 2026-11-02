@@ -156,6 +156,16 @@ Chosen model: logistic regression on the 11 features. Next: calibration (reliabi
 
 At 15 minutes, the game state summarized as team differences gives about 0.52 log loss and 74 % accuracy, and the limit comes from the information available, not from the model. The 11-feature logistic regression is kept.
 
+### Calibration and explanations
+
+`notebooks/05_calibration.ipynb` checks whether the chosen model's probabilities can be trusted, and explains them. Tools live in `src/explain.py`.
+
+- **The logistic regression is well calibrated as is.** On the 953 test matches: Brier score 0.175, expected calibration error 2.8 points, calibration slope 1.04 (95 % CI 0.89 to 1.18) and intercept 0.02 (CI −0.13 to 0.17); all 10 probability deciles have an observed win rate within the confidence interval of the predicted one. Predictions are also spread out (35 % of matches below 20 % or above 80 %). LightGBM is slightly worse calibrated (ECE 4.2 points).
+- **No recalibration is kept.** Platt scaling and isotonic regression, learned on out-of-fold predictions of the training period, do not improve test log loss (+0.001 and +0.007). Those out-of-fold predictions come from models trained on fewer matches and are slightly overconfident (slope 0.93), a flaw the final model does not have: recalibrating on them would correct a problem that is not there.
+- **SHAP explanations without the `shap` package.** For a linear model the exact SHAP value of a feature is coefficient × (value − training mean), on the log-odds scale; LightGBM computes TreeSHAP itself (`pred_contrib=True`). Both match the `shap` library to 1e-15. Mean absolute contribution (logistic regression): gold difference 0.82, dragons 0.41, XP 0.28, first dragon 0.16, everything else below 0.10. Kills, towers and CS get small negative effects at equal gold: SHAP explains the model, not causes in the game.
+
+The app will show the logistic regression's probability unchanged, with a per-match breakdown (baseline, then the features that moved the prediction most).
+
 ## Data & privacy
 
 Match data comes from the [Riot Games API](https://developer.riotgames.com/). Raw data and API keys are not published in this repository; player identifiers are pseudonymized.
