@@ -119,7 +119,32 @@ Results on 4,762 matches (time-ordered split: 3,809 older matches to learn the s
 
 - The highest scores go to known late-game champions (Kayle, Kassadin, Vladimir, Smolder, Orianna) and the lowest to early-game ones (Kled, Kennen, Mordekaiser, Diana), which is a sanity check on the method.
 - On test matches, the team with the better scaling score wins 53.6 % of long games and 49.1 % of short ones. If the scores are learned including the test matches (leakage), the gap looks almost four times larger (59.1 % vs 42.4 %).
-- With about 950 test matches, a 4.5-point gap is close to the noise level: whether the score improves predictions is tested with cross-validation in the next step.
+- With about 950 test matches, a 4.5-point gap is close to the noise level: whether the score improves predictions is tested with cross-validation in the next section.
+
+## Model comparison: logistic regression vs LightGBM
+
+`notebooks/03_models.ipynb` compares models that predict the blue side's win probability at 15 min. Reusable pieces (models, leakage-free preparation, cross-validation, paired bootstrap) live in `src/models.py`.
+
+- **Protocol**: the 953 most recent matches are held out as a test set and used once. Every choice (LightGBM hyperparameters, feature sets) is made on the 3,809 older matches with **time-ordered cross-validation** (`TimeSeriesSplit`, 5 folds: always validate on matches more recent than the training ones). Main metric: **log loss** (quality of the probabilities), plus Brier score, AUC and accuracy.
+- **No leakage**: the champion scaling scores, the scaler and the model are refit inside each fold. Training matches get **out-of-fold** scaling scores (`oof_scaling`), so that no match sees its own result in its score (the classic target-encoding trap).
+
+Test-set results (953 matches):
+
+| Model | Features | Log loss | AUC | Accuracy |
+|---|---|---|---|---|
+| Constant (blue win rate) | none | 0.692 | 0.500 | 52.9 % |
+| Logistic regression | gold only | 0.539 | 0.799 | 72.5 % |
+| **Logistic regression** | **11 game-state features** | **0.524** | **0.813** | **74.1 %** |
+| Logistic regression | + scaling score and gold × scaling | 0.527 | 0.812 | 74.4 % |
+| LightGBM (4 leaves, 200 trees) | 11 features + gold by role | 0.528 | 0.809 | 73.0 % |
+| LightGBM | + scaling score | 0.530 | 0.808 | 73.4 % |
+
+- **Logistic regression is the best model.** LightGBM is not significantly different (paired bootstrap on log loss: +0.004, 95 % CI −0.003 to +0.011) and is behind on 3 of 5 cross-validation folds. The signal is mostly linear and driven by gold; the best LightGBM is the simplest in the grid, and bigger trees do worse.
+- **The 11 features beat gold alone** (−0.015 log loss, 95 % CI −0.026 to −0.005): dragons and XP add information, kills, towers and CS do not.
+- **The scaling score does not improve 15-minute predictions** (+0.002 on test, CI −0.003 to +0.008).
+- **Leakage, measured**: learning the scaling scores with the validation matches makes the score look useful (0.524 instead of 0.530 in cross-validation); applying them to the matches they were learned on makes the model overweight it and do worse (0.535). Leakage can bias a conclusion in either direction.
+
+Chosen model: logistic regression on the 11 features. Next: calibration (reliability curve) and SHAP explanations.
 
 ## Data & privacy
 

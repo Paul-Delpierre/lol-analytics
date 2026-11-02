@@ -15,17 +15,18 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), et leurs dépendances
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), et leurs dépendances
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 12)
+## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 13)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
 - Étape 10 « Analyse exploratoire (notebook) » faite le 30 oct. 2026 : notebooks/01_exploration.ipynb exécuté sur les 4 907 parties, conclusions écrites (voir « Étape 10 faite »).
 - Étape 11 « 2-3 questions testées » faite le 31 oct. 2026 : notebooks/02_regression.ipynb (régression logistique, statsmodels) exécuté sur 4 762 parties, conclusions écrites (voir « Étape 11 faite »).
 - Étape 12 « Features à 15 min » + score de scaling faite le 2 nov. 2026 : src/features.py lancé sur la vraie base (voir « Étape 12 faite »).
+- Étape 13 « Régression logistique vs LightGBM » faite le 2 nov. 2026 : notebooks/03_models.ipynb exécuté, la logistique gagne, le scaling n'aide pas (voir « Étape 13 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -43,7 +44,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   14. Etape 9 : collecte en fond (collect.py, riot_api.py, quality.py, README, PLAN, CONTEXT) — commit + push par Paul (2a52292, 46919ab).
   15. Etape 10 : notebook d'analyse exploratoire (notebook, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul (4da0dc8).
   16. Etape 11 : régression logistique (notebook 02, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul (588fc58).
-  17. Etape 12 : features à 15 min (src/features.py, README, PLAN, CONTEXT) — commit + push par Paul.
+  17. 88b51ef Etape 12 : features à 15 min (src/features.py, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -140,8 +141,22 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Scaling (3 809 parties d'entraînement, 953 de test) : en tête Belveth 20,1, Braum 19,0, Sona 16,9, Ivern, Evelynn, Kayle, Orianna, Kassadin, Vladimir, Smolder ; en bas Kled −14,7, Kennen, Mordekaiser, Diana, KogMaw, Ekko, Blitzcrank, Xayah, Gragas, Lulu (cohérent avec le jeu). Équipe au meilleur score sur le test : 53,6 % des parties longues, 49,1 % des courtes ; avec fuite (notes apprises avec le test) 59,1 % / 42,4 % → l'écart paraît presque 4 fois plus grand. Écart propre de 4,5 points proche du bruit (≈ 950 parties de test) : à juger en validation croisée.
 - README : section « Features at 15 minutes ». Guide : Claude Doc « Étape 12 — Features à 15 min » (https://claude.ai/artifact/LcgED1hpDeLav5ucncx3xF).
 
-## Prochaine étape : étape 13, régression logistique vs LightGBM
-Comparer une régression logistique (scikit-learn) et LightGBM sur les features de src/features.py, en validation croisée sans fuite : notes de scaling réapprises dans chaque pli (sur la partie entraînement du pli seulement), découpage qui respecte l'ordre du temps. Mesurer l'apport du score de scaling (avec / sans). Paquets à installer : scikit-learn, lightgbm (vérifier les roues Windows pour Python 3.14).
+## Étape 13 faite : régression logistique vs LightGBM (2 nov. 2026)
+- src/models.py et notebooks/03_models.ipynb (écrits par Claude, testés dans le cloud sur 4 762 parties synthétiques, exécutés par Paul sur la vraie base, conclusions écrites dans la partie 9). Paquets ajoutés : scikit-learn 1.9.1, lightgbm 4.7.0 (+ joblib, threadpoolctl).
+- models.py (importé par les notebooks, servira à l'étape 14 et à Streamlit) : make_baseline (DummyClassifier « prior »), make_logit (StandardScaler + LogisticRegression C=1 dans un pipeline : le scaler est réappris dans chaque pli), make_lgbm (prudent : min_child_samples 50, subsample / colsample_bytree 0,8, learning_rate 0,03, reg_lambda 1), oof_scaling (score de scaling des parties d'entraînement calculé hors pli, KFold 5 interne), prepare(train, other, use_scaling, oof=True), evaluate (log loss = critère principal, Brier, AUC, précision), fit_predict, time_folds / cross_validate (TimeSeriesSplit 5 plis, entraînement qui grandit), paired_bootstrap (IC 95 % d'un écart de log loss, mêmes parties tirées pour les deux modèles).
+- Protocole : test = 953 parties les plus récentes (24 au 28 oct.), regardé une seule fois ; choix faits en validation croisée chronologique sur les 3 809 autres (16 juil. au 24 oct.). Pourquoi pas KFold mélangé : on apprendrait le futur (patchs, champions à la mode).
+- Grille LightGBM (num_leaves 4/7/15 × n_estimators 100/200/400) : meilleur = 4 feuilles, 200 arbres (le plus simple, au bord de la grille) ; 15 feuilles / 400 arbres = 0,568.
+- Résultats CV (log loss) : constante 0,693, Logit or seul 0,536, Logit 11 variables 0,530, Logit + scaling 0,530, LightGBM 0,535, LightGBM + scaling 0,535.
+- Résultats test : Logit 0,524 (AUC 0,813, 74,1 %), Logit or seul 0,539, Logit + scaling 0,527, LightGBM 0,528 (AUC 0,809), LightGBM + scaling 0,530. Bootstrap apparié : Logit > or seul (−0,015, IC −0,026 à −0,005) ; LightGBM vs Logit +0,004 (IC −0,003 à +0,011, pas de différence) ; scaling +0,002 (IC −0,003 à +0,008, rien). Probabilités Logit / LightGBM corrélées à 0,985.
+- Deux fuites mesurées (Logit + scaling, CV) : fuite 1 (notes apprises avec la validation) 0,524 → ferait croire que le scaling aide ; fuite 2 (notes appliquées aux parties qui les ont apprises = piège du target encoding) 0,535 → le modèle surpondère le score (coefficient réduit 0,31 au lieu de 0,20) et prédit moins bien ; propre (hors pli) 0,530. Découverte au 1er lancement, corrigée par oof_scaling. Une fuite peut biaiser dans les deux sens.
+- Décision : modèle retenu = régression logistique sur les 11 variables, sans scaling. LightGBM reste la référence pour le GRU.
+- Limites : une saison de patchs, test de 5 jours (±0,005 de log loss), pli 1 entraîné sur 639 parties.
+- README : section « Model comparison ». Guide : Claude Doc « Étape 13 — Logit vs LightGBM » (https://claude.ai/artifact/9AWYKfYmeNTait5uXpi89Q). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape13/build_nb.py.
+
+## Prochaine étape : étape 13 bis, améliorer le modèle (décidée le 2 nov. 2026)
+Revue des pistes : Claude Doc « Pistes d'amélioration de la prédiction » (https://claude.ai/artifact/1ZS3sEugyWU5s1narNuUpG). Constat : à 15 min le plafond est bas (≈ 70-75 % de bons pronostics), le modèle n'est pas le frein ; il faut des informations que l'or ne contient pas, et plus de parties pour mesurer des gains de l'ordre de 0,005. Référence à battre : log loss 0,524 sur le test (Logit 11 variables).
+Ordre décidé : (1) notebook 04_improvements.ipynb : courbe d'apprentissage (500 → 3 809 parties) + variables déjà en base, ajoutées une par une en CV (évolution de l'or 10 → 15 min, niveaux, type de dragons, joueurs morts à 15:00, joueur le plus riche) ; (2) si la courbe descend encore : collecte de 20 000 parties à partir de plusieurs joueurs de rangs différents ; (3) pendant la collecte : objets terminés et wards depuis data/raw (modifier schema + load.py) ; (4) en option : réglages (C, splines, moyenne des modèles), rang league-v4, classes Data Dragon.
+Ensuite : étape 14, calibration (Brier, courbe de fiabilité) et SHAP.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -163,6 +178,7 @@ Comparer une régression logistique (scikit-learn) et LightGBM sur les features 
 - src/check_db.py : test de connexion Python → PostgreSQL et présence des 7 tables.
 - src/load.py et src/quality.py : insertion en base et contrôles qualité (voir « Étape 8 faite »).
 - src/features.py : features à 15 min et score de scaling, importé par les modèles (voir « Étape 12 faite »).
+- src/models.py : modèles, préparation sans fuite, validation croisée, bootstrap (voir « Étape 13 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
@@ -171,7 +187,8 @@ Comparer une régression logistique (scikit-learn) et LightGBM sur les features 
 - CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
 - sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).
 - notebooks/01_exploration.ipynb : analyse exploratoire (voir « Étape 10 faite »).
-- notebooks/02_regression.ipynb : tests par régression logistique (voir « Étape 11 faite »). tests/ : vide (un .gitkeep).
+- notebooks/02_regression.ipynb : tests par régression logistique (voir « Étape 11 faite »).
+- notebooks/03_models.ipynb : logistique vs LightGBM (voir « Étape 13 faite »). tests/ : vide (un .gitkeep).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}
@@ -227,6 +244,7 @@ Par équipe :
 - Warning Git LF/CRLF sur Windows : sans danger
 - Ctrl+P ne trouve pas les fichiers de data/ car ils sont ignorés par Git : ouvrir avec "code data/fichier.json" (pareil pour CLAUDE.md)
 - 22 oct. : une capture d'écran du terminal montrait le début de la clé Riot. Recadrer les captures avant de les envoyer.
+- 2 nov. : TypeError « unexpected keyword argument 'oof' » après une mise à jour de src/models.py : le noyau du notebook gardait l'ancienne version en mémoire (Python n'importe un module qu'une fois). Après avoir modifié un .py importé : Restart du noyau, puis Run All.
 
 ## Règles
 - Docker : Claude rappelle à Paul, au début de chaque séance qui utilise la base, d'ouvrir Docker Desktop puis de faire `docker compose start`, et à la fin, de faire `docker compose stop` puis de fermer Docker Desktop (demande de Paul du 26 oct. 2026).
