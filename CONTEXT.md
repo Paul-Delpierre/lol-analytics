@@ -19,7 +19,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 14)
+## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 15 = v1 publique)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -29,6 +29,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape 13 « Régression logistique vs LightGBM » faite le 2 nov. 2026 : notebooks/03_models.ipynb exécuté, la logistique gagne, le scaling n'aide pas (voir « Étape 13 faite »).
 - Étape 13 bis « Améliorer le modèle » faite le 2 nov. 2026 : notebooks/04_improvements.ipynb, aucun gain sur le test, collecte supplémentaire inutile (voir « Étape 13 bis faite »).
 - Étape 14 « Calibration, SHAP » faite le 2 nov. 2026 : notebooks/05_calibration.ipynb, probabilités de la logistique déjà bien calibrées, pas de recalibrage (voir « Étape 14 faite »).
+- Étape 15 « README en anglais avec résultats et figures » faite le 2 nov. 2026 : README réécrit (résultats en tête, schéma du pipeline, 4 figures, limites), src/make_figures.py → docs/figures/ (voir « Étape 15 faite »). Fin du bloc « v1 publique ».
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -49,6 +50,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   17. 88b51ef Etape 12 : features à 15 min (src/features.py, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
   18. 0b41037 Etape 13 : régression logistique vs LightGBM, CV sans fuite (src/models.py, notebooks/03_models.ipynb, README, PLAN, CONTEXT, requirements.txt) — commit + push par Paul le 2 nov.
   19. 19e91d5 Etape 13 bis : tentatives d'amélioration, courbe d'apprentissage et nouvelles variables (src/features.py, notebooks/04_improvements.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
+  20. 419c62b Etape 14 : calibration et explications SHAP (src/explain.py, notebooks/05_calibration.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
+  21. Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -175,8 +178,13 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Décision : logistique de l'étape 13 gardée SANS recalibrage ; l'appli affichera sa probabilité telle quelle et l'explication linear_contributions + explain_game.
 - README : section « Calibration and explanations ». Guide : Claude Doc « Étape 14 : calibration et SHAP — guide » (https://claude.ai/artifact/H8NcYs6NpcFituLJ3acUe8). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape14/build_nb05.py.
 
-## Prochaine étape : README en anglais avec résultats et figures
-Dernière ligne du bloc « 7 – 20 déc. » (v1 publique) : README en anglais propre, avec les résultats des étapes 10 à 14 et quelques figures (exportées des notebooks dans un dossier docs/ ou figures/), puis on passe au deep learning (janvier).
+## Étape 15 faite : README en anglais avec résultats et figures (2 nov. 2026)
+- README.md réécrit pour la v1 publique : question du projet en une phrase, « Results at a glance » (74 %, log loss 0,524, AUC 0,81 ; or puis dragons ; probabilités fiables ; la limite vient de l'information, pas du modèle ; 2 fuites mesurées) avec 2 figures côte à côte, schéma du pipeline en Mermaid (GitHub le dessine), structure du dépôt à jour, « Reproducing the results », sections détaillées regroupées (Data pipeline, Analysis, Predicting the winner at 15 minutes), « Limitations » et « Roadmap ». Pourcentages à l'anglaise (74%, pas 74 %).
+- src/make_figures.py (choix : script plutôt que captures des notebooks, car les notebooks sont en français et les figures doivent se refaire à l'identique) : réutilise features.py / models.py / explain.py, même découpage et mêmes graines que les notebooks 03 à 05 ; affiche la log loss du test comme contrôle (attendu 0,5242). 4 PNG à 150 dpi dans docs/figures/ : win_rate_by_gold.png (déciles d'écart d'or, IC de Wilson), learning_curve.png (comme le notebook 04), calibration.png (courbe de fiabilité + histogramme des probabilités), shap_importance.png (moyenne |SHAP| de la logistique). Couleurs fixes : bleu = logistique, orange = LightGBM. matplotlib en mode Agg (pas de fenêtre). Aucun nouveau paquet.
+- Testé dans le cloud sur PostgreSQL 16 + 4 800 parties synthétiques (~12 s).
+
+## Prochaine étape : tutoriel PyTorch (bloc « Janvier : deep learning »)
+Puis GRU : probabilité de victoire minute par minute, comparée à LightGBM. Les frames de toutes les minutes sont déjà en base (participant_frames).
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -203,7 +211,8 @@ Dernière ligne du bloc « 7 – 20 déc. » (v1 publique) : README en anglais p
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
-- README.md : présentation en anglais (objectifs, structure, installation complète, mention légale Riot), à compléter avec les résultats.
+- README.md : présentation en anglais de la v1 (résultats, figures, pipeline, installation, limites, mention légale Riot).
+- src/make_figures.py et docs/figures/ : figures du README (voir « Étape 15 faite »).
 - PLAN.md : plan par étapes avec cases à cocher.
 - CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
 - sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).

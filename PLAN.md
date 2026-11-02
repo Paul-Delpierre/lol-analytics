@@ -23,7 +23,7 @@
 - [x] Régression logistique vs LightGBM, validation croisée sans fuite
 - [x] Améliorer le modèle : courbe d'apprentissage, nouvelles variables (or 10→15 min, dragons…) — aucun gain sur le test, la logistique de l'étape 13 est gardée
 - [x] Calibration (Brier, courbe de fiabilité), SHAP — probabilités déjà bien calibrées, pas de recalibrage
-- [ ] README en anglais avec résultats et figures
+- [x] README en anglais avec résultats et figures (src/make_figures.py → docs/figures/) — v1 publique
 
 ## Janvier : deep learning
 - [ ] Tutoriel PyTorch
