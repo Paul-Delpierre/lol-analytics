@@ -26,7 +26,7 @@
 - [x] README en anglais avec résultats et figures (src/make_figures.py → docs/figures/) — v1 publique
 
 ## Janvier : deep learning
-- [ ] Tutoriel PyTorch
+- [x] Tutoriel PyTorch (logistique refaite en PyTorch, MLP : aucun gain)
 - [ ] GRU : probabilité de victoire minute par minute, comparaison avec LightGBM
 
 ## Février : produit → v2

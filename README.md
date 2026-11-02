@@ -46,13 +46,15 @@ lol-analytics/
 │   ├── features.py       # 15-minute features (SQL) and champion scaling score
 │   ├── models.py         # models, leakage-free preparation, CV, paired bootstrap
 │   ├── explain.py        # calibration tools and SHAP values
+│   ├── deep.py           # PyTorch models and training loop
 │   └── make_figures.py   # rebuilds the README figures
 ├── notebooks/
 │   ├── 01_exploration.ipynb   # exploratory analysis
 │   ├── 02_regression.ipynb    # hypothesis tests (statsmodels)
 │   ├── 03_models.ipynb        # logistic regression vs LightGBM
 │   ├── 04_improvements.ipynb  # learning curve, new features
-│   └── 05_calibration.ipynb   # calibration and SHAP
+│   ├── 05_calibration.ipynb   # calibration and SHAP
+│   └── 06_pytorch.ipynb       # PyTorch: logistic regression and MLP
 ├── sql/schema.sql        # database schema (7 tables)
 ├── docs/figures/         # README figures
 ├── data/                 # local data (not versioned)
@@ -83,7 +85,7 @@ python src/check_db.py             # should list the 7 tables
 python src/collect.py --riot-id "GameName#TAG" --max-matches 5000   # a few hours
 python src/load.py                 # insert the new matches
 python src/quality.py              # checks, prints OK / ATTENTION
-# then run notebooks/01 to 05 in order
+# then run notebooks/01 to 06 in order
 python src/make_figures.py         # regenerate docs/figures/
 ```
 
@@ -192,6 +194,14 @@ Test-set results (953 matches):
 ![Mean absolute SHAP value per feature](docs/figures/shap_importance.png)
 
 Gold difference dominates (0.82), then dragons (0.41) and XP (0.28). Kills, towers and CS get small negative weights at equal gold: SHAP explains the model, not causes in the game, and gold and XP should be read together since they move together.
+
+### Neural networks (PyTorch)
+
+`notebooks/06_pytorch.ipynb`, with models and the training loop in `src/deep.py`. This is the groundwork for the minute-by-minute model.
+
+- **Same logistic regression, rebuilt in PyTorch.** Written by hand (weights, gradient descent and the same L2 penalty as scikit-learn), it recovers scikit-learn's coefficients to 0.002 and the same test log loss, 0.5242. With standard PyTorch blocks (`nn.Linear`, AdamW, mini-batches, early stopping on the most recent training matches) it reaches 0.5243. This checks the training loop on a problem with a known answer.
+- **Same evaluation as the other models.** A small adapter gives the network scikit-learn's `fit` / `predict_proba` interface, so it goes through the same time-ordered cross-validation; the scaler and early stopping are fitted inside each fold.
+- **A multilayer perceptron does not help.** Cross-validated log loss: 0.5285 for the PyTorch logistic regression, 0.5363 with 16 hidden units, 0.5401 with 64. On the test set the 16-unit network scores 0.5285 vs 0.5242 (difference +0.004, 95% CI −0.001 to +0.009). As with LightGBM, the 15-minute signal is close to linear and ~3,800 training matches leave little for a more flexible model to find.
 
 ## Limitations
 

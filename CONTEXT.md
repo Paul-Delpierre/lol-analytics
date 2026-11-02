@@ -15,11 +15,11 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), et leurs dépendances
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), et leurs dépendances
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 15 = v1 publique)
+## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 16 = tutoriel PyTorch)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -30,6 +30,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape 13 bis « Améliorer le modèle » faite le 2 nov. 2026 : notebooks/04_improvements.ipynb, aucun gain sur le test, collecte supplémentaire inutile (voir « Étape 13 bis faite »).
 - Étape 14 « Calibration, SHAP » faite le 2 nov. 2026 : notebooks/05_calibration.ipynb, probabilités de la logistique déjà bien calibrées, pas de recalibrage (voir « Étape 14 faite »).
 - Étape 15 « README en anglais avec résultats et figures » faite le 2 nov. 2026 : README réécrit (résultats en tête, schéma du pipeline, 4 figures, limites), src/make_figures.py → docs/figures/ (voir « Étape 15 faite »). Fin du bloc « v1 publique ».
+- Étape 16 « Tutoriel PyTorch » faite le 2 nov. 2026 : src/deep.py + notebooks/06_pytorch.ipynb, la logistique refaite en PyTorch retrouve 0,5242, le MLP ne fait pas mieux (voir « Étape 16 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -51,7 +52,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   18. 0b41037 Etape 13 : régression logistique vs LightGBM, CV sans fuite (src/models.py, notebooks/03_models.ipynb, README, PLAN, CONTEXT, requirements.txt) — commit + push par Paul le 2 nov.
   19. 19e91d5 Etape 13 bis : tentatives d'amélioration, courbe d'apprentissage et nouvelles variables (src/features.py, notebooks/04_improvements.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
   20. 419c62b Etape 14 : calibration et explications SHAP (src/explain.py, notebooks/05_calibration.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
-  21. Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul.
+  21. 0bb2be6 Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul le 2 nov. Vérifié sur GitHub par Claude (fichiers identiques, figures conformes aux chiffres du README : 7 % / 94 %, SHAP or 0,82, dragons 0,41, XP 0,28).
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -183,8 +184,15 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - src/make_figures.py (choix : script plutôt que captures des notebooks, car les notebooks sont en français et les figures doivent se refaire à l'identique) : réutilise features.py / models.py / explain.py, même découpage et mêmes graines que les notebooks 03 à 05 ; affiche la log loss du test comme contrôle (attendu 0,5242). 4 PNG à 150 dpi dans docs/figures/ : win_rate_by_gold.png (déciles d'écart d'or, IC de Wilson), learning_curve.png (comme le notebook 04), calibration.png (courbe de fiabilité + histogramme des probabilités), shap_importance.png (moyenne |SHAP| de la logistique). Couleurs fixes : bleu = logistique, orange = LightGBM. matplotlib en mode Agg (pas de fenêtre). Aucun nouveau paquet.
 - Testé dans le cloud sur PostgreSQL 16 + 4 800 parties synthétiques (~12 s).
 
-## Prochaine étape : tutoriel PyTorch (bloc « Janvier : deep learning »)
-Puis GRU : probabilité de victoire minute par minute, comparée à LightGBM. Les frames de toutes les minutes sont déjà en base (participant_frames).
+## Étape 16 faite : tutoriel PyTorch (2 nov. 2026)
+- Pourquoi : le GRU (prochaine étape) demande PyTorch, où l'on écrit soi-même la boucle d'entraînement. On l'a d'abord validée sur un problème dont la réponse est connue : la logistique de l'étape 13 (log loss test 0,5242).
+- src/deep.py (écrit par Claude) : LogisticNet (une couche nn.Linear = la logistique) ; MLP (linéaire → ReLU → dropout → linéaire) ; train_model (AdamW, mini-lots de 128 mélangés, BCEWithLogitsLoss, arrêt précoce patience 20 sur une validation, retour aux poids de la meilleure époque, renvoie l'historique des pertes) ; predict_proba ; TorchClassifier = adaptateur au format scikit-learn (fit / predict_proba) pour réutiliser cross_validate / fit_predict / paired_bootstrap de models.py ; dans fit : StandardScaler appris sur l'entraînement du pli, 15 % de parties les plus récentes pour l'arrêt précoce. Les modèles renvoient des logits (sigmoïde dans la perte : plus stable).
+- notebooks/06_pytorch.ipynb (8 parties) : tenseurs ; autograd (exemple 3w = 9) ; données (mêmes que 13-15) ; logistique « à la main » (w, b, 2 000 pas, pénalité L2 de scikit-learn = ‖w‖² / (2 C n)) ; LogisticNet + train_model ; CV de 4 modèles puis test une fois avec bootstrap apparié ; aperçu du GRU (formes (parties, minutes, variables)) ; conclusions.
+- Résultats (exécuté par Paul, PyTorch 2.14.1+cpu) : à la main, coefficients = scikit-learn à 0,002 près, log loss test 0,5242 ; LogisticNet 0,5243 (meilleure époque 12 sur 32). CV : Logit PyTorch 0,5285, Logit scikit-learn 0,5297, MLP 16 neurones 0,5363, MLP 64 neurones 0,5401. Test : MLP 16 0,5285 contre 0,5242, écart +0,0044 (IC 95 % −0,0009 à +0,0094) ; précision 75,6 % contre 74,1 % mais log loss moins bonne. Conclusion : comme LightGBM, un modèle plus souple n'apporte rien à 15 min (effet presque linéaire, ~3 800 parties).
+- Testé d'abord dans le cloud (PostgreSQL 16 + 4 800 parties synthétiques, PyTorch 2.13 CPU, ~30 s). README : section « Neural networks (PyTorch) ». Guide : Claude Doc « Étape 16 : tutoriel PyTorch (guide pas à pas) » (https://claude.ai/artifact/6KpACAzuMuCk9fx8xjiq57). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape16/build_nb06.py.
+
+## Prochaine étape : GRU, probabilité de victoire minute par minute (bloc « Janvier : deep learning »)
+Construire des séquences (parties, minutes, variables) à partir de participant_frames et events (toutes les minutes sont en base), entraîner un GRU avec train_model (une probabilité par minute), et le comparer à LightGBM / à la logistique minute par minute, avec le même découpage chronologique.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -208,6 +216,7 @@ Puis GRU : probabilité de victoire minute par minute, comparée à LightGBM. Le
 - src/features.py : features à 15 min et score de scaling, importé par les modèles (voir « Étape 12 faite ») ; variables candidates build_extra_features (voir « Étape 13 bis faite »).
 - src/models.py : modèles, préparation sans fuite, validation croisée, bootstrap (voir « Étape 13 faite »).
 - src/explain.py : calibration (courbe de fiabilité, recalibrage) et valeurs de SHAP (voir « Étape 14 faite »).
+- src/deep.py : modèles PyTorch, boucle d'entraînement, adaptateur scikit-learn (voir « Étape 16 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
@@ -220,7 +229,8 @@ Puis GRU : probabilité de victoire minute par minute, comparée à LightGBM. Le
 - notebooks/02_regression.ipynb : tests par régression logistique (voir « Étape 11 faite »).
 - notebooks/03_models.ipynb : logistique vs LightGBM (voir « Étape 13 faite »).
 - notebooks/04_improvements.ipynb : courbe d'apprentissage et nouvelles variables (voir « Étape 13 bis faite »).
-- notebooks/05_calibration.ipynb : calibration et explications SHAP (voir « Étape 14 faite »). tests/ : vide (un .gitkeep).
+- notebooks/05_calibration.ipynb : calibration et explications SHAP (voir « Étape 14 faite »).
+- notebooks/06_pytorch.ipynb : tutoriel PyTorch, logistique et MLP (voir « Étape 16 faite »). tests/ : vide (un .gitkeep).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}
