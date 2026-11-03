@@ -22,6 +22,3 @@ venv/
 .vscode/
 desktop.ini
 Thumbs.db
-
-# Contexte local pour Claude Code
-CLAUDE.md

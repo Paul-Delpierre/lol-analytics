@@ -4,7 +4,7 @@
 
 End-to-end data project on ranked Solo/Duo matches (EUW): collection through the Riot API, a PostgreSQL database, statistical tests, a win-prediction model with leakage-free validation, calibration checks and SHAP explanations.
 
-> **Status: v1.** Data pipeline and 15-minute win model are done. Next: a minute-by-minute win-probability model (GRU, PyTorch), then a Streamlit app.
+> **Status: v1.** Data pipeline, 15-minute win model and minute-by-minute win probability are done. Next: a Streamlit app.
 
 ## Results at a glance
 
@@ -14,6 +14,7 @@ On 4,762 ranked matches (patches 16.14 to 16.21), with the 953 most recent match
 - **Gold is most of the story.** The team ahead in gold wins far more often; at equal gold, **dragons** still matter (about as much as 1,000 gold each) and XP adds a little. Kills, towers and CS add nothing beyond the gold they bring.
 - **The probabilities can be trusted as they are**: a match announced at 70% is won about 70% of the time (calibration error 2.8 points, all 10 deciles within their confidence interval). No recalibration needed.
 - **The limit is the information, not the model.** More matches, more features, tuning and ensembling all failed to improve the test score.
+- **Minute by minute, a GRU does not beat a logistic regression per minute** (test log loss 0.536 vs 0.533, difference not significant): the cumulative game state already carries the history (see [Win probability minute by minute](#win-probability-minute-by-minute)).
 - **Two data leaks were found and measured**, not just avoided (see [Model comparison](#model-comparison-logistic-regression-vs-lightgbm)).
 
 | Gold at 15 minutes vs the final result | Calibration on the test set |
@@ -46,7 +47,8 @@ lol-analytics/
 │   ├── features.py       # 15-minute features (SQL) and champion scaling score
 │   ├── models.py         # models, leakage-free preparation, CV, paired bootstrap
 │   ├── explain.py        # calibration tools and SHAP values
-│   ├── deep.py           # PyTorch models and training loop
+│   ├── deep.py           # PyTorch models (MLP, GRU) and training loop
+│   ├── sequences.py      # minute-by-minute data, per-minute models, game-level evaluation
 │   └── make_figures.py   # rebuilds the README figures
 ├── notebooks/
 │   ├── 01_exploration.ipynb   # exploratory analysis
@@ -54,7 +56,8 @@ lol-analytics/
 │   ├── 03_models.ipynb        # logistic regression vs LightGBM
 │   ├── 04_improvements.ipynb  # learning curve, new features
 │   ├── 05_calibration.ipynb   # calibration and SHAP
-│   └── 06_pytorch.ipynb       # PyTorch: logistic regression and MLP
+│   ├── 06_pytorch.ipynb       # PyTorch: logistic regression and MLP
+│   └── 07_gru.ipynb           # minute by minute: GRU vs per-minute logit vs LightGBM
 ├── sql/schema.sql        # database schema (7 tables)
 ├── docs/figures/         # README figures
 ├── data/                 # local data (not versioned)
@@ -203,15 +206,30 @@ Gold difference dominates (0.82), then dragons (0.41) and XP (0.28). Kills, towe
 - **Same evaluation as the other models.** A small adapter gives the network scikit-learn's `fit` / `predict_proba` interface, so it goes through the same time-ordered cross-validation; the scaler and early stopping are fitted inside each fold.
 - **A multilayer perceptron does not help.** Cross-validated log loss: 0.5285 for the PyTorch logistic regression, 0.5363 with 16 hidden units, 0.5401 with 64. On the test set the 16-unit network scores 0.5285 vs 0.5242 (difference +0.004, 95% CI −0.001 to +0.009). As with LightGBM, the 15-minute signal is close to linear and ~3,800 training matches leave little for a more flexible model to find.
 
+## Win probability minute by minute
+
+`notebooks/07_gru.ipynb`, with data, models and evaluation in `src/sequences.py` and the GRU in `src/deep.py`. Same matches and same test set as above; every minute of every match becomes one prediction (141,149 match-minutes).
+
+- **Data.** The 11 features of the 15-minute model are rebuilt at every minute, plus Baron, Elder dragon, Rift Herald, inhibitors and kills in the last minute. An event counts at minute *t* only if it happened before *t*, and the final frame (the exact moment the game ends) is dropped. At minute 15 this table matches the 15-minute features exactly, except 8 matches where both teams got first blood in the same millisecond.
+- **Three models.** A logistic regression per minute (one model for each minute, 40+ pooled), one LightGBM over all match-minutes with the minute as a feature, and a GRU (32 hidden units) that reads the match minute by minute and outputs a probability at each minute. The GRU is unidirectional, and a test checks it: changing a match after minute 20 leaves its predictions for minutes 1-20 exactly unchanged.
+- **Leakage-free evaluation.** Splits are always by match, never by row (all minutes of a match stay on the same side), in time order. Confidence intervals come from a bootstrap over matches: a row-level bootstrap treats the ~30 minutes of a match as independent and gives an interval about three times too narrow.
+
+| Log loss, all match-minutes | Cross-validation | Test |
+|---|---|---|
+| Logistic regression per minute | **0.546** | **0.533** |
+| GRU | 0.548 | 0.536 |
+| LightGBM | 0.554 | 0.535 |
+
+On the test set the GRU is +0.003 behind the per-minute logistic regression (95% CI −0.001 to +0.008) and +0.002 behind LightGBM (CI −0.004 to +0.006): no detectable difference. Gold, towers and objectives are cumulative, so the state at minute *t* already summarises the match; recent momentum, the one thing only the GRU sees, adds nothing measurable with ~3,800 training matches. At minute 15 the per-minute model scores 0.5241, the same as the 15-minute model (0.5242). Log loss falls from 0.65 at 5 minutes to 0.40 at 25 minutes, then rises again (0.49 at 35 minutes): matches still running that late are the close ones. The app will use the per-minute logistic regression.
+
 ## Limitations
 
 - **Sample**: about 5,000 EUW Solo/Duo matches from a snowball that starts at one player, over eight patches. It is not a random sample of the ladder, and rank is not used.
-- **One moment in the game**: the model only looks at the state at 15:00. The minute-by-minute model is the next step.
+- **Game state only**: the models see gold, XP, kills and objectives, not positions, vision or items, which is where a sequence model could find more.
 - **Associations, not causes**: team compositions, player skill and in-game decisions are not measured.
 
 ## Roadmap
 
-- **Deep learning**: minute-by-minute win probability with a GRU (PyTorch), compared with LightGBM.
 - **App**: Streamlit dashboard (Riot ID → matches, win-probability curve, key moments), Docker Compose, pytest and GitHub Actions.
 
 ## Data & privacy

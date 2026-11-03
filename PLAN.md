@@ -27,7 +27,8 @@
 
 ## Janvier : deep learning
 - [x] Tutoriel PyTorch (logistique refaite en PyTorch, MLP : aucun gain)
-- [ ] GRU : probabilité de victoire minute par minute, comparaison avec LightGBM
+- [x] GRU : probabilité de victoire minute par minute, comparaison avec LightGBM — aucun gain sur la logistique par minute, gardée pour l'appli
+- [ ] Bonus : mini démo en direct (API locale « Live Client Data » du jeu sur le PC → features à 15 min → appel du modèle), usage perso et analyse uniquement, jamais en compétition (règles Riot)
 
 ## Février : produit → v2
 - [ ] Appli Streamlit (Riot ID → parties, courbe, moments clés)

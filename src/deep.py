@@ -1,6 +1,6 @@
-"""Réseaux de neurones PyTorch pour la victoire à 15 min (étape 16), réutilisables pour le GRU.
+"""Réseaux de neurones PyTorch : victoire à 15 min (étape 16) et minute par minute (étape 17).
 
-Ce module regroupe les briques du notebook 06 :
+Ce module regroupe les briques des notebooks 06 et 07 :
 1. les modèles : LogisticNet (une seule couche linéaire = la régression logistique)
    et MLP (une couche cachée : le plus petit « vrai » réseau de neurones) ;
 2. train_model() : LA boucle d'entraînement (mini-lots, optimiseur, arrêt précoce sur
@@ -9,10 +9,14 @@ Ce module regroupe les briques du notebook 06 :
 4. TorchClassifier : enveloppe un réseau dans l'interface de scikit-learn (fit /
    predict_proba). Grâce à elle, les fonctions de src/models.py (cross_validate,
    fit_predict, paired_bootstrap) évaluent un réseau EXACTEMENT comme la logistique
-   et LightGBM : mêmes plis chronologiques, mêmes métriques, aucune fuite.
+   et LightGBM : mêmes plis chronologiques, mêmes métriques, aucune fuite ;
+5. (étape 17) WinGRU : le réseau récurrent qui lit une partie minute par minute et
+   donne une probabilité à chaque minute, et masked_bce(), sa fonction de perte qui
+   ignore les minutes « vides » (après la fin de la partie).
 
-Utilisation (notebook 06) :
-    from deep import LogisticNet, MLP, train_model, predict_proba, TorchClassifier
+Utilisation :
+    from deep import LogisticNet, MLP, train_model, predict_proba, TorchClassifier  # notebook 06
+    from deep import WinGRU, masked_bce                                             # notebook 07
 """
 
 import copy
@@ -92,7 +96,8 @@ def mean_loss(model, X, y, loss_fn):
 
 
 def train_model(model, train, valid, lr=1e-2, weight_decay=0.0, batch_size=128,
-                max_epochs=300, patience=20, seed=SEED, verbose=False):
+                max_epochs=300, patience=20, seed=SEED, verbose=False,
+                loss_fn=None, clip=None):
     """Entraîne `model` sur train = (X, y) ; arrêt précoce sur valid = (X, y).
 
     Une « époque » = un passage sur toutes les parties d'entraînement, par mini-lots
@@ -102,13 +107,18 @@ def train_model(model, train, valid, lr=1e-2, weight_decay=0.0, batch_size=128,
     apprendre le bruit de l'entraînement : surapprentissage).
 
     weight_decay : pénalité L2 sur les poids (AdamW), comme le C de la logistique.
+    loss_fn : fonction de perte ; par défaut la log loss d'une probabilité par ligne
+    (BCEWithLogitsLoss). Le GRU passe masked_bce (une probabilité par minute).
+    clip : si donné, limite la norme des gradients (utile pour les réseaux récurrents,
+    dont les gradients peuvent « exploser » en remontant le temps). Les valeurs par
+    défaut (None) gardent exactement le comportement de l'étape 16.
 
     Renvoie un DataFrame : une ligne par époque (train_loss, valid_loss).
     Le modèle est modifié sur place et revient à sa meilleure époque.
     """
     set_seed(seed)
     loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True)
-    loss_fn = nn.BCEWithLogitsLoss()
+    loss_fn = loss_fn or nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     best_loss, best_state, best_epoch, history = np.inf, None, 0, []
@@ -118,6 +128,8 @@ def train_model(model, train, valid, lr=1e-2, weight_decay=0.0, batch_size=128,
             optimizer.zero_grad()          # 1. effacer les gradients du lot précédent
             loss = loss_fn(model(xb), yb)  # 2. prédire et mesurer l'erreur
             loss.backward()                # 3. calculer les gradients (autograd)
+            if clip:
+                nn.utils.clip_grad_norm_(model.parameters(), clip)
             optimizer.step()               # 4. corriger les poids
         row = {"epoch": epoch,
                "train_loss": mean_loss(model, *train, loss_fn),
@@ -184,3 +196,41 @@ class TorchClassifier:
         Xs = to_tensor(self.scaler_.transform(np.asarray(X, dtype=np.float32)))
         p = predict_proba(self.net_, Xs)
         return np.column_stack([1 - p, p])  # même format que scikit-learn
+
+
+# ---------------------------------------------------------------------------
+# 4. Le GRU minute par minute (étape 17)
+# ---------------------------------------------------------------------------
+class WinGRU(nn.Module):
+    """Lit une partie minute par minute et donne un logit de victoire du bleu à CHAQUE minute.
+
+    Entrée : (lot, minutes, variables). Le GRU tient à jour un état caché de `hidden`
+    nombres, un résumé de la partie « jusqu'ici » ; une couche linéaire (la même pour
+    toutes les minutes) transforme chaque résumé en logit. Sortie : (lot, minutes).
+
+    Le GRU est UNIDIRECTIONNEL : l'état de la minute t ne dépend que des minutes 1 à t.
+    C'est ce qui garantit l'absence de fuite temporelle (un GRU bidirectionnel lirait
+    aussi la fin de la partie). Pour la même raison, les minutes vides ajoutées APRÈS
+    la fin des parties courtes (le « padding ») ne changent rien aux minutes réelles.
+    """
+
+    def __init__(self, n_features, hidden=32, layers=1, dropout=0.2):
+        super().__init__()
+        self.gru = nn.GRU(n_features, hidden, num_layers=layers, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.head = nn.Linear(hidden, 1)
+
+    def forward(self, x):
+        states, _ = self.gru(x)                              # (lot, minutes, hidden)
+        return self.head(self.dropout(states)).squeeze(-1)   # (lot, minutes)
+
+
+def masked_bce(logits, y):
+    """Log loss moyenne sur les minutes RÉELLES seulement.
+
+    y a la forme (lot, minutes) : le résultat de la partie (0 ou 1) répété à chaque
+    minute jouée, et NaN après la fin de la partie. Le masque écarte ces NaN : chaque
+    (partie, minute) jouée pèse pareil, comme une ligne du tableau de LightGBM.
+    """
+    mask = ~torch.isnan(y)
+    return nn.functional.binary_cross_entropy_with_logits(logits[mask], y[mask])

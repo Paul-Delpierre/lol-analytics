@@ -1,14 +1,7 @@
 # Contexte du projet (pour reprendre une conversation)
 
 ## Projet
-LoL Analytics : analyse de parties League of Legends via l'API Riot, projet perso IA/data publié sur GitHub (pour le CV). Le plan complet est dans PLAN.md. Mon niveau et la façon de travailler sont dans CLAUDE.md (fichier local).
-
-## Façon de travailler (règles fixées les 21 et 22 oct. 2026)
-- Claude écrit tout le code ; Paul n'en écrit pas, mais chaque morceau est expliqué en détail (pourquoi + comment, ligne par ligne).
-- Explication du code (règle actuelle, 27 oct. 2026 au soir) : expliquer le code par parties : ce que fait chaque partie, POURQUOI (choix de conception, alternatives écartées) et la structure d'ensemble. Le « comment » rapidement, pas ligne par ligne. Objectif : que Paul sache répondre à des questions de structure en entretien ; il pose ses questions de détail sur le coup.
-- Chaque étape du plan = un guide détaillé, pas à pas : commandes expliquées, ce qu'on doit voir, erreurs possibles, points de contrôle.
-- CONTEXT.md est rempli et mis à jour uniquement par Claude, jamais par Paul. Si Claude n'a pas accès au dossier local, il fournit le fichier complet et Paul le colle tel quel.
-- Paul est débutant en Git et en terminal : expliquer chaque commande donnée.
+LoL Analytics : analyse de parties League of Legends via l'API Riot, projet perso IA/data publié sur GitHub (pour le CV). Le plan complet est dans PLAN.md.
 
 ## Environnement
 - Windows, VS Code, terminal PowerShell
@@ -19,7 +12,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 2 nov. 2026, fin de l'étape 16 = tutoriel PyTorch)
+## État d'avancement (mis à jour le 3 nov. 2026, fin de l'étape 17 = GRU minute par minute)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -31,13 +24,14 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape 14 « Calibration, SHAP » faite le 2 nov. 2026 : notebooks/05_calibration.ipynb, probabilités de la logistique déjà bien calibrées, pas de recalibrage (voir « Étape 14 faite »).
 - Étape 15 « README en anglais avec résultats et figures » faite le 2 nov. 2026 : README réécrit (résultats en tête, schéma du pipeline, 4 figures, limites), src/make_figures.py → docs/figures/ (voir « Étape 15 faite »). Fin du bloc « v1 publique ».
 - Étape 16 « Tutoriel PyTorch » faite le 2 nov. 2026 : src/deep.py + notebooks/06_pytorch.ipynb, la logistique refaite en PyTorch retrouve 0,5242, le MLP ne fait pas mieux (voir « Étape 16 faite »).
+- Étape 17 « GRU minute par minute, comparaison avec LightGBM » faite le 3 nov. 2026 : src/sequences.py + notebooks/07_gru.ipynb, le GRU ne bat pas la logistique par minute, gardée pour l'appli (voir « Étape 17 faite »). Fin du bloc « Janvier : deep learning ».
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
   3. Set up Python environment
   4. Etape 3 : premiers appels API Riot
   5. Ajout de CONTEXT.md pour reprendre le contexte
-  6. 286c1f1 Mise à jour de CONTEXT.md et ajout de CLAUDE.md au .gitignore
+  6. 286c1f1 Mise à jour de CONTEXT.md et mise à jour du .gitignore
   7. 9c987d4 Convert requirements to UTF-8, update CONTEXT.md and .gitignore
   8. f747d0e Etape 4 : exploration de la timeline (explore_timeline.py, resume_timeline.py, PLAN.md, CONTEXT.md)
   9. b44816a Fix CONTEXT.md formatting
@@ -52,17 +46,18 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   18. 0b41037 Etape 13 : régression logistique vs LightGBM, CV sans fuite (src/models.py, notebooks/03_models.ipynb, README, PLAN, CONTEXT, requirements.txt) — commit + push par Paul le 2 nov.
   19. 19e91d5 Etape 13 bis : tentatives d'amélioration, courbe d'apprentissage et nouvelles variables (src/features.py, notebooks/04_improvements.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
   20. 419c62b Etape 14 : calibration et explications SHAP (src/explain.py, notebooks/05_calibration.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
-  21. 0bb2be6 Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul le 2 nov. Vérifié sur GitHub par Claude (fichiers identiques, figures conformes aux chiffres du README : 7 % / 94 %, SHAP or 0,82, dragons 0,41, XP 0,28).
-- Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct. Seul écart corrigé : CLAUDE.md (local) n'avait pas la règle « Claude écrit tout le code » ; il a été remis à jour.
+  21. 0bb2be6 Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul le 2 nov. Vérifié sur GitHub (fichiers identiques, figures conformes aux chiffres du README : 7 % / 94 %, SHAP or 0,82, dragons 0,41, XP 0,28).
+  22. c60f229 Etape 16 : tutoriel PyTorch, logistique et MLP (src/deep.py, notebooks/06_pytorch.ipynb, README, PLAN, CONTEXT, requirements.txt avec torch 2.14.1) — commit + push par Paul le 2 nov. Vérifié sur GitHub (6 fichiers identiques).
+- Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
 ## Étape 6 faite : PostgreSQL dans Docker (26 oct. 2026)
-- Fichiers écrits par Claude sur le PC (testés dans le cloud avec Docker + PostgreSQL 16.15 : les 7 tables sont créées, les données survivent à docker compose down / up) :
+- Fichiers créés (testés d'abord avec Docker + PostgreSQL 16.15 : les 7 tables sont créées, les données survivent à docker compose down / up) :
   - docker-compose.yml : service db, image postgres:16, conteneur lol-postgres, utilisateur / mot de passe / base = lol, port 127.0.0.1:5433 côté PC (5432 dans le conteneur), volume nommé pgdata (sur le PC : lol-analytics_pgdata), sql/schema.sql monté dans /docker-entrypoint-initdb.d/ (exécuté seulement quand le volume est vide), healthcheck pg_isready.
   - src/check_db.py : se connecte avec psycopg à DATABASE_URL (lu dans .env) et vérifie que les 7 tables existent.
   - requirements.txt : + psycopg 3.3.6 et psycopg-binary 3.3.6 (roue Windows pour Python 3.14 disponible).
   - README.md : section Setup complétée (venv, pip install -r requirements.txt, .env, docker compose up -d, check_db.py).
-- Fait sur le PC de Paul : Docker Desktop installé (il a fallu activer la Virtual Machine Platform avec `wsl --install --no-distribution` en PowerShell administrateur, puis redémarrer), DATABASE_URL ajouté à .env, docker compose up -d, vérification avec psql dans le conteneur et python src/check_db.py. Guide : Claude Doc « Étape 6 — PostgreSQL dans Docker ».
+- Fait sur le PC de Paul : Docker Desktop installé (il a fallu activer la Virtual Machine Platform avec `wsl --install --no-distribution` en PowerShell administrateur, puis redémarrer), DATABASE_URL ajouté à .env, docker compose up -d, vérification avec psql dans le conteneur et python src/check_db.py.
 - Utilisation au quotidien : ouvrir Docker Desktop, puis `docker compose start` (ou `up -d`) avant de travailler avec la base ; à la fin de la séance, `docker compose stop` puis quitter Docker Desktop (il prend 1 à 2 Go de RAM).
 - Si schema.sql change plus tard : les tables ne sont recréées que si le volume est vide → docker compose down -v (efface toutes les données) puis docker compose up -d.
 
@@ -73,12 +68,12 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - src/riot_api.py : RateLimiter (deux fenêtres glissantes 20 req/1 s et 100 req/120 s, une deque par fenêtre, affiche les pauses > 1 s) ; RiotClient(api_key, region) avec requests.Session et l'en-tête X-Riot-Token ; get(path, **params) : 200 -> JSON, 404 -> None, 401/403 -> RiotKeyError (message avec le chemin et la réponse de Riot), 429 -> attend Retry-After, 5xx et erreurs réseau -> backoff 2, 4, 8, 16 s ; 5 essais max.
 - src/collect.py : collecte « boule de neige » (parcours en largeur) depuis un Riot ID ; match-v5 /ids avec queue=420 ; pour chaque partie, match + timeline enregistrés dans data/raw/matches/<id>.json.gz et data/raw/timelines/<id>.json.gz (gzip, écriture atomique .tmp puis os.replace) ; les 9 autres joueurs vont dans la file. Reprise : une partie est faite si ses 2 fichiers existent ; joueurs parcourus dans data/raw/players_done.txt ; la file est reconstruite au démarrage à partir des fichiers de match. Options : --riot-id (obligatoire), --max-matches (objectif TOTAL sur le disque, 20 par défaut), --per-player (20 par défaut). Ctrl+C et clé expirée -> arrêt propre avec message.
 - Commande : python src/collect.py --riot-id "TECHNIQUEMENT#99999" --max-matches 20
-- Testé dans le cloud avec un faux serveur Riot (429, 503, 404, reprise), puis sur le PC le 27 oct. : 20 parties, puis 80 (pause du limiteur de 84 s observée, Ctrl+C à 68, reprise jusqu'à 80). Résultat : 80 matchs + 80 timelines, 6,4 Mo (≈ 80 Ko par partie), toutes en queue 420, aucun .tmp. Environ 24 parties/min au maximum (2 requêtes par partie), soit ≈ 1 400/h.
+- Testé avec un faux serveur Riot (429, 503, 404, reprise), puis sur le PC le 27 oct. : 20 parties, puis 80 (pause du limiteur de 84 s observée, Ctrl+C à 68, reprise jusqu'à 80). Résultat : 80 matchs + 80 timelines, 6,4 Mo (≈ 80 Ko par partie), toutes en queue 420, aucun .tmp. Environ 24 parties/min au maximum (2 requêtes par partie), soit ≈ 1 400/h.
 - Limite à connaître : l'échantillon part de Paul (biais de niveau au début) ; seules les --per-player dernières parties de chaque joueur sont prises.
-- README : section « Data collection » ajoutée. Guide : Claude Doc « Étape 7 — Script de collecte » (https://claude.ai/artifact/MMmDJrCtXXLbWbszmnJy5c).
+- README : section « Data collection » ajoutée.
 
 ## Étape 8 faite : insertion en base + contrôles qualité (27 oct. 2026)
-- src/load.py (écrit par Claude) : lit data/raw/matches/*.json.gz + la timeline de même nom, et remplit les 7 tables avec psycopg (DATABASE_URL de .env, autocommit).
+- src/load.py : lit data/raw/matches/*.json.gz + la timeline de même nom, et remplit les 7 tables avec psycopg (DATABASE_URL de .env, autocommit).
   - Idempotent : les match_id déjà en base sont sautés (SELECT match_id FROM matches au début). Relancer le script après chaque collecte n'insère que les nouvelles parties. players : INSERT ... ON CONFLICT DO NOTHING (un joueur revient dans plusieurs parties).
   - Une transaction par partie (with conn.transaction()) : la partie est insérée entièrement ou pas du tout ; une erreur SQL sur une partie est affichée et le script continue.
   - Contrôles AVANT insertion (check_match, partie refusée avec sa raison) : timeline d'une autre partie, queueId ≠ 420, remake (gameEndedInEarlySurrender ou < 5 min), pas 10 joueurs numérotés 1-10, équipes ≠ 5/5, pas exactement une équipe gagnante, participantId timeline ≠ match, valeur obligatoire manquante, frame incomplète.
@@ -86,16 +81,16 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   - killer_team_id : CHAMPION_KILL -> équipe du tueur, ou 300 - équipe de la victime si exécution ; ELITE_MONSTER_KILL -> killerTeamId, NULL si 300 (héraut mort sans équipe, 10 cas sur 80 parties) ; BUILDING_KILL et TURRET_PLATE_DESTROYED -> 300 - teamId.
   - Les parties de plus de 5 min mais de moins de 15 min sont gardées (vraies parties, utiles au GRU) : le modèle à 15 min les exclura avec WHERE minute = 15.
   - Option --limit N : n'insère que N nouvelles parties (pour tester).
-- src/quality.py (écrit par Claude) : ne fait que lire. Affiche des chiffres (parties, joueurs, durées, parties sans minute 15, % victoires bleues, exécutions, patchs) et 10 contrôles SQL (OK / ATTENTION n cas) : 2 équipes et un seul gagnant par partie, 10 joueurs 5/5, aucune minute manquante, or total jamais en baisse, kills timeline (hors exécutions) = somme des kills du match par équipe, tours et dragons timeline = tower_kills / dragon_kills, aucun poste manquant, aucun remake.
+- src/quality.py : ne fait que lire. Affiche des chiffres (parties, joueurs, durées, parties sans minute 15, % victoires bleues, exécutions, patchs) et 10 contrôles SQL (OK / ATTENTION n cas) : 2 équipes et un seul gagnant par partie, 10 joueurs 5/5, aucune minute manquante, or total jamais en baisse, kills timeline (hors exécutions) = somme des kills du match par équipe, tours et dragons timeline = tower_kills / dragon_kills, aucun poste manquant, aucun remake.
 - Découverte : teams.champion_kills de Riot compte parfois les exécutions et parfois non ; le contrôle fiable est « kills avec un tueur dans la timeline = somme de participants.kills ».
-- Test dans le cloud (PostgreSQL 16, schema.sql, les 80 parties du PC) : 79 insérées + 1 remake refusé (EUW1_7961274942, 119 s), 2e lancement : 0 insérée, 79 déjà en base. ≈ 0,08 s par partie. Tables : 79 matches, 158 teams, 670 players, 790 participants, 24 290 participant_frames, 11 768 events, 8 461 event_assists. quality.py : 10/10 OK. Or à 15 min de EUW1_7995392565 identique à l'étape 5 (26 387 / 27 591).
+- Test (PostgreSQL 16, schema.sql, les 80 parties du PC) : 79 insérées + 1 remake refusé (EUW1_7961274942, 119 s), 2e lancement : 0 insérée, 79 déjà en base. ≈ 0,08 s par partie. Tables : 79 matches, 158 teams, 670 players, 790 participants, 24 290 participant_frames, 11 768 events, 8 461 event_assists. quality.py : 10/10 OK. Or à 15 min de EUW1_7995392565 identique à l'étape 5 (26 387 / 27 591).
 - README : section « Loading into PostgreSQL » ajoutée.
-- Fait sur le PC de Paul le 27 oct. : load.py --limit 5, load.py, relance (0 insérée, pas de doublon), quality.py : 10/10 contrôles OK. Guide : Claude Doc « Étape 8 — Insertion en base + contrôles qualité » (https://claude.ai/artifact/156x2HZrwLsmciAWfmkvMM).
+- Fait sur le PC de Paul le 27 oct. : load.py --limit 5, load.py, relance (0 insérée, pas de doublon), quality.py : 10/10 contrôles OK.
 - Repartir de zéro si besoin (efface les données, garde les tables) : docker exec -it lol-postgres psql -U lol -d lol -c "TRUNCATE matches, players CASCADE;"
 
 ## Étape 9 faite : collecte en fond (28 oct. 2026)
 - Dossier sorti de OneDrive le 28 oct. : C:\Users\pauld\projets\lol-analytics (même nom de dossier, donc même volume Docker lol-analytics_pgdata ; premier lancement après le déplacement avec docker compose up -d, qui recrée le conteneur avec le nouveau chemin). .venv supprimé puis recréé (py -3.14 -m venv .venv) ; piège rencontré : pip install lancé sans (.venv) dans le prompt installe dans le Python du PC (« Requirement already satisfied … pythoncore-3.14-64 ») → activer avec .venv\Scripts\Activate.ps1 puis relancer pip.
-- Code (écrit par Claude, testé dans le cloud avec un faux serveur Riot) :
+- Code (testé d'abord avec un faux serveur Riot) :
   - src/collect.py : messages via logging, à l'écran ET dans data/logs/collect.log (horodaté) ; keep_awake() = SetThreadExecutionState (ctypes) pour empêcher la veille de Windows pendant la collecte (l'écran peut s'éteindre ; fermer le capot met quand même en veille) ; single_instance() = verrou du système sur data/raw/collect.lock (msvcrt.locking / fcntl.flock), refuse une 2e collecte dans le même dossier, libéré automatiquement même si le script plante ; collect() séparée de main(), renvoie (nouvelles parties, raison de l'arrêt) ; report() = bilan toutes les 100 parties (parties/h, heure de fin estimée) ; RuntimeError (réseau ou Riot en panne trop longtemps) -> arrêt propre.
   - src/riot_api.py : logging au lieu de print (la bibliothèque produit les messages, collect.py décide où ils vont) ; 8 essais, backoff plafonné à 60 s (2, 4, 8, 16, 32, 60, 60, 60) : une coupure d'environ 4 min est absorbée.
   - src/quality.py : la ligne « Patchs » (left(game_version, 5) affichait « 16.1. ») remplacée par « Parties par patch » (split_part, nombre de parties par patch, tri numérique).
@@ -107,10 +102,9 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   - « L'or total ne baisse jamais » : 2 cas sur 1,5 M lignes (EUW1_7993549538 joueur 8 minute 12 : -90 ; EUW1_8013684170 joueur 2 minute 29 : -176). Les deux coïncident avec un event ITEM_UNDO (bouton « annuler » de la boutique) : Riot retire alors un peu de totalGold. Négligeable.
   - « Aucun poste manquant » : 1 cas, EUW1_8028482881 joueur 6 (Fiora), partie de 8 min, individualPosition = "Invalid" : joueur probablement AFK dès le début, Riot n'a pas pu deviner son poste. team_position NULL est la bonne valeur.
 - Patchs (à retenir pour l'analyse) : la boule de neige prend les 20 dernières parties classées de chaque joueur, donc certaines sont anciennes (de juillet 2025, patch 15.14, à octobre 2026). 16.21 : 1 450, 16.20 : 1 053, 16.19 : 421, 16.14 à 16.18 : 1 892, avant 16.14 : environ 90. Penser à filtrer ou contrôler par patch à l'étape 10.
-- Guide : Claude Doc « Étape 9 — Collecte en fond » (https://claude.ai/artifact/K1DSMirV5KudR2PawJMjHY).
 
 ## Étape 10 faite : analyse exploratoire (30 oct. 2026)
-- notebooks/01_exploration.ipynb (écrit par Claude, testé dans le cloud sur 613 parties, exécuté par Paul sur toute la base, résultats enregistrés dans le fichier et commités pour que GitHub affiche les graphiques ; aucun identifiant de joueur dedans).
+- notebooks/01_exploration.ipynb (testé d'abord sur 613 parties, exécuté par Paul sur toute la base, résultats enregistrés dans le fichier et commités pour que GitHub affiche les graphiques ; aucun identifiant de joueur dedans).
 - Structure : query(sql) (psycopg -> DataFrame, une connexion par requête ; pas pd.read_sql, qui veut SQLAlchemy) et prop_ci(k, n) (proportion + IC 95 % par approximation normale), puis une section par question : vue d'ensemble/patchs, durées, côté bleu, état à 15 min, premiers objectifs, champions, joueurs répétés, conclusions. Le SQL fait les agrégations, Python ne reçoit que des petits résultats.
 - État à 15 min = écarts bleu − rouge : or, XP, CS (participant_frames, minute = 15), kills, bâtiments, plaques, dragons (events, timestamp_ms < 900 000). Requête avec deux CTE (frames15, events15), astuce CASE team_id = 100 THEN 1 ELSE -1, FILTER (WHERE event_type = ...). Courbes de victoire par déciles (pd.qcut) avec IC.
 - Résultats (4 907 parties) :
@@ -122,10 +116,9 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   - 79 % des places = joueurs vus une seule fois : parties presque indépendantes.
 - towers_diff comptait tous les BUILDING_KILL, donc aussi les inhibiteurs : corrigé à l'étape 11 (filtre building_type = 'TOWER_BUILDING').
 - Incident pendant l'exécution : une cellule (comptage des 7 tables) est restée bloquée plusieurs minutes alors que la base était inactive (docker stats : 4,8 % CPU) ; Paul a fini par l'exécuter en entier, cause non identifiée. Si ça recommence : Interrupt, lire la fin du KeyboardInterrupt (connect ou execute ?), et pg_stat_activity.
-- Guide : Claude Doc « Étape 10 — Analyse exploratoire » (https://claude.ai/artifact/GYeByCahxvkotSmdMNn5M5).
 
 ## Étape 11 faite : 3 questions testées par régression logistique (31 oct. 2026)
-- notebooks/02_regression.ipynb (écrit par Claude, testé dans le cloud sur 3 000 parties synthétiques, exécuté par Paul sur la vraie base, résultats enregistrés dans le fichier). statsmodels 0.15.0 ajouté au venv (+ scipy, patsy, formulaic ; requirements.txt régénéré).
+- notebooks/02_regression.ipynb (testé d'abord sur 3 000 parties synthétiques, exécuté par Paul sur la vraie base, résultats enregistrés dans le fichier). statsmodels 0.15.0 ajouté au venv (+ scipy, patsy, formulaic ; requirements.txt régénéré).
 - Pourquoi statsmodels et pas scikit-learn : on veut expliquer (coefficients, IC, p-valeurs) ; scikit-learn vise la prédiction (étape 12).
 - Jeu de données : une ligne par partie vue du bleu (la ligne du rouge = même partie retournée, lignes dépendantes), écarts bleu − rouge à 15 min (gold_k et xp_k en milliers, kills, tours = TOWER_BUILDING seulement, plaques, dragons, CS/10), first_tower15 = bleu / rouge / aucune avant 15 min (calculé dans events avec DISTINCT ON ; pas teams.first_tower, qui porte sur toute la partie = fuite d'information), patch. Filtres : patchs 16.14 à 16.21 et minute 15 présente → 4 762 parties sur 4 907. Comme tout est bleu − rouge, la constante du modèle = avantage de côté.
 - Outils : fit(formule) (smf.logit), odds_table (odds ratios + IC 95 % + p-valeurs), lr_test (rapport de vraisemblance entre modèles emboîtés), logistic. Codages : C(first_tower15, Treatment('aucune')), C(patch, Sum) (constante = moyenne sur les patchs).
@@ -136,10 +129,9 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   - Q3 : bleu 48,5 % (IC 47,0-49,9, p = 0,03) ; patch sans effet (LR p = 0,45), avec patch 48,6 % (p = 0,10) ; à écart de dragons égal 50,9 % (IC 49,1-52,7) → l'avantage rouge, faible, passe par les dragons.
   - Modèle complet : or 1,33, XP 1,11, dragons 1,30, le reste nul ; pseudo-R² 0,243. Erreurs types robustes HC1 à moins de 3 % des classiques.
 - Limites : associations contrôlées, pas des causes (niveau, compositions non mesurés) ; parties pas tout à fait indépendantes ; une quinzaine de tests.
-- Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape11/build_nb.py. Guide : Claude Doc « Étape 11 — Régression logistique » (https://claude.ai/artifact/2etVcQzSA2VfDTLtY9JD5j).
 
 ## Étape 12 faite : features à 15 min + score de scaling (31 oct. – 2 nov. 2026)
-- src/features.py (écrit par Claude, testé dans le cloud sur 3 000 parties synthétiques, lancé par Paul sur la vraie base le 2 nov.). Module importable par l'étape 13 : `from features import build_features, fit_scaling, add_scaling, FEATURES`. Lancé seul (python src/features.py) : construit le jeu, 5 contrôles, résumé, corrélations, démo du score de scaling.
+- src/features.py (testé d'abord sur 3 000 parties synthétiques, lancé par Paul sur la vraie base le 2 nov.). Module importable par l'étape 13 : `from features import build_features, fit_scaling, add_scaling, FEATURES`. Lancé seul (python src/features.py) : construit le jeu, 5 contrôles, résumé, corrélations, démo du score de scaling.
 - build_features(minute=15, patch_min=14, patch_max=21) : une requête SQL à 5 CTE (frames : or/XP/CS à la minute 15, total et par poste ; ev : events avant 15 min avec +1/−1 ; counts ; firsts avec DISTINCT ON ; champs : array_agg des 5 champions par équipe), HAVING count(*) = 10, coalesce 0, requête paramétrée. Une ligne par partie vue du bleu, triée par date. Le paramètre minute servira au GRU.
 - Listes de colonnes (garde-fou contre la fuite) : FEATURES = 11 écarts (gold_k, xp_k, cs_diff, kills, tours, plaques, dragons, larves, first_blood / first_tower / first_dragon codés +1/−1/0) ; ROLE_FEATURES = or par poste (somme = gold_k, donc pas avec gold_k en logistique, pour LightGBM) ; SCALING_FEATURES = scaling_diff, gold_x_scaling ; INFO_COLUMNS = match_id, game_creation, patch, duration_min (connue en fin de partie : jamais une feature), blue_champs, red_champs.
 - Héraut retiré le 2 nov. : heralds_diff valait 0 dans les 4 762 parties (aucun héraut tué avant 15 min sur ces patchs).
@@ -147,10 +139,10 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Score de scaling : fit_scaling(train) = note par champion = 100 × (taux de victoire lissé dans les parties longues − dans les courtes), longue = durée ≥ médiane du train, lissage (victoires + 20 × 0,5) / (parties + 20) ; add_scaling(df, notes) = somme par équipe, scaling_diff = bleu − rouge, gold_x_scaling = gold_k × scaling_diff ; champion inconnu = 0. Séparé en fit / apply comme scikit-learn : à l'étape 13, les notes seront réapprises dans chaque pli.
 - Résultats sur la vraie base : 4 762 parties, bleu 48,5 %, 5/5 contrôles OK. Corrélations avec la victoire : or 0,52, XP 0,50, kills 0,48, plaques 0,43, CS 0,40, tours 0,40, première tour 0,35, dragons 0,34, or bot 0,32 … top 0,26, support 0,25, premier dragon 0,23, premier sang 0,14, larves 0,13. Écart de dragons entre −2 et +2 avant 15 min.
 - Scaling (3 809 parties d'entraînement, 953 de test) : en tête Belveth 20,1, Braum 19,0, Sona 16,9, Ivern, Evelynn, Kayle, Orianna, Kassadin, Vladimir, Smolder ; en bas Kled −14,7, Kennen, Mordekaiser, Diana, KogMaw, Ekko, Blitzcrank, Xayah, Gragas, Lulu (cohérent avec le jeu). Équipe au meilleur score sur le test : 53,6 % des parties longues, 49,1 % des courtes ; avec fuite (notes apprises avec le test) 59,1 % / 42,4 % → l'écart paraît presque 4 fois plus grand. Écart propre de 4,5 points proche du bruit (≈ 950 parties de test) : à juger en validation croisée.
-- README : section « Features at 15 minutes ». Guide : Claude Doc « Étape 12 — Features à 15 min » (https://claude.ai/artifact/LcgED1hpDeLav5ucncx3xF).
+- README : section « Features at 15 minutes ».
 
 ## Étape 13 faite : régression logistique vs LightGBM (2 nov. 2026)
-- src/models.py et notebooks/03_models.ipynb (écrits par Claude, testés dans le cloud sur 4 762 parties synthétiques, exécutés par Paul sur la vraie base, conclusions écrites dans la partie 9). Paquets ajoutés : scikit-learn 1.9.1, lightgbm 4.7.0 (+ joblib, threadpoolctl).
+- src/models.py et notebooks/03_models.ipynb (testés d'abord sur 4 762 parties synthétiques, exécutés par Paul sur la vraie base, conclusions écrites dans la partie 9). Paquets ajoutés : scikit-learn 1.9.1, lightgbm 4.7.0 (+ joblib, threadpoolctl).
 - models.py (importé par les notebooks, servira à l'étape 14 et à Streamlit) : make_baseline (DummyClassifier « prior »), make_logit (StandardScaler + LogisticRegression C=1 dans un pipeline : le scaler est réappris dans chaque pli), make_lgbm (prudent : min_child_samples 50, subsample / colsample_bytree 0,8, learning_rate 0,03, reg_lambda 1), oof_scaling (score de scaling des parties d'entraînement calculé hors pli, KFold 5 interne), prepare(train, other, use_scaling, oof=True), evaluate (log loss = critère principal, Brier, AUC, précision), fit_predict, time_folds / cross_validate (TimeSeriesSplit 5 plis, entraînement qui grandit), paired_bootstrap (IC 95 % d'un écart de log loss, mêmes parties tirées pour les deux modèles).
 - Protocole : test = 953 parties les plus récentes (24 au 28 oct.), regardé une seule fois ; choix faits en validation croisée chronologique sur les 3 809 autres (16 juil. au 24 oct.). Pourquoi pas KFold mélangé : on apprendrait le futur (patchs, champions à la mode).
 - Grille LightGBM (num_leaves 4/7/15 × n_estimators 100/200/400) : meilleur = 4 feuilles, 200 arbres (le plus simple, au bord de la grille) ; 15 feuilles / 400 arbres = 0,568.
@@ -159,47 +151,61 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Deux fuites mesurées (Logit + scaling, CV) : fuite 1 (notes apprises avec la validation) 0,524 → ferait croire que le scaling aide ; fuite 2 (notes appliquées aux parties qui les ont apprises = piège du target encoding) 0,535 → le modèle surpondère le score (coefficient réduit 0,31 au lieu de 0,20) et prédit moins bien ; propre (hors pli) 0,530. Découverte au 1er lancement, corrigée par oof_scaling. Une fuite peut biaiser dans les deux sens.
 - Décision : modèle retenu = régression logistique sur les 11 variables, sans scaling. LightGBM reste la référence pour le GRU.
 - Limites : une saison de patchs, test de 5 jours (±0,005 de log loss), pli 1 entraîné sur 639 parties.
-- README : section « Model comparison ». Guide : Claude Doc « Étape 13 — Logit vs LightGBM » (https://claude.ai/artifact/9AWYKfYmeNTait5uXpi89Q). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape13/build_nb.py.
+- README : section « Model comparison ».
 
 ## Étape 13 bis faite : tentatives d'amélioration du modèle à 15 min (2 nov. 2026)
-- Revue des pistes : Claude Doc « Pistes d'amélioration de la prédiction » (https://claude.ai/artifact/1ZS3sEugyWU5s1narNuUpG). Faites : courbe d'apprentissage, variables déjà en base, réglage de C, moyenne de modèles. Non faites (jugées inutiles après les résultats) : collecte de 20 000 parties, objets / wards depuis data/raw, rang league-v4, classes Data Dragon.
-- src/features.py : nouvelle section « 2 bis », build_extra_features(df, minute=15, early=10) → (df, groupes). Requêtes séparées (EXTRA_SQL, DRAGONS_SQL) pour ne pas modifier le jeu de l'étape 12. Groupes : or à 10 min (gold10_k, gold_trend_k), niveaux (level_diff), joueur le plus riche (top_gold_k), joueurs en vie à 15:00 (alive_diff = tués dans les 30 s avant 15:00), dragons par type (drag_<type>_diff). Testé dans le cloud sur une PostgreSQL 16 locale avec le vrai schéma.
+- Pistes d'amélioration revues. Faites : courbe d'apprentissage, variables déjà en base, réglage de C, moyenne de modèles. Non faites (jugées inutiles après les résultats) : collecte de 20 000 parties, objets / wards depuis data/raw, rang league-v4, classes Data Dragon.
+- src/features.py : nouvelle section « 2 bis », build_extra_features(df, minute=15, early=10) → (df, groupes). Requêtes séparées (EXTRA_SQL, DRAGONS_SQL) pour ne pas modifier le jeu de l'étape 12. Groupes : or à 10 min (gold10_k, gold_trend_k), niveaux (level_diff), joueur le plus riche (top_gold_k), joueurs en vie à 15:00 (alive_diff = tués dans les 30 s avant 15:00), dragons par type (drag_<type>_diff). Testé sur une PostgreSQL 16 locale avec le vrai schéma.
 - notebooks/04_improvements.ipynb : courbe d'apprentissage sur le pli 5 (400 → 3 175 parties, 5 tirages) ; groupes ajoutés un par un en CV avec une règle fixée avant (écart moyen < 0 ET ≥ 4 plis sur 5) ; C ∈ {0,001 … 10} ; LightGBM avec toutes les variables ; test final avec bootstrap apparié.
 - Résultats : courbe presque plate pour la logistique (0,5242 à 1 600 parties → 0,5226 à 3 175), LightGBM descend encore (0,5410 → 0,5325) mais reste ~0,01 derrière → collecte inutile pour ce modèle. Nouvelles variables corrélées à 0,80-0,89 avec l'or ; gardées par la règle : joueur le plus riche (−0,0020) et or à 10 min (−0,0007) ; avec C = 0,1, CV 0,5297 → 0,5258 ; MAIS test 0,5270 contre 0,5242 (+0,003, IC −0,002 à +0,007) → gain = bruit (malédiction du gagnant). Dragons par type pires (+0,006). LightGBM toutes variables 0,5376 en CV, 0,530 en test. Moyenne Logit + LightGBM 0,528.
 - Décision : modèle retenu inchangé = logistique de l'étape 13 (11 variables, C = 1). Plafond à 15 min ≈ 0,52 de log loss / 74 % ; le gain sûr viendra de prédire plus tard (GRU en janvier). README : sous-section « Trying to improve the 15-minute model ».
 
 ## Étape 14 faite : calibration et explications SHAP (2 nov. 2026)
-- src/explain.py et notebooks/05_calibration.ipynb (écrits par Claude, testés dans le cloud sur une PostgreSQL 16 locale avec 4 800 parties synthétiques, exécutés par Paul sur la vraie base, conclusions écrites dans la partie 6). Aucun paquet ajouté : statsmodels était déjà là, et le paquet shap n'est PAS utilisé.
+- src/explain.py et notebooks/05_calibration.ipynb (testés d'abord sur une PostgreSQL 16 locale avec 4 800 parties synthétiques, exécutés par Paul sur la vraie base, conclusions écrites dans la partie 6). Aucun paquet ajouté : statsmodels était déjà là, et le paquet shap n'est PAS utilisé.
 - explain.py, partie calibration : reliability_table (10 déciles de probabilité annoncée, taux réel + IC de Wilson), expected_calibration_error (ECE), calibration_fit (pente et ordonnée de calibration avec IC, statsmodels), oof_predictions (prédictions hors pli avec les plis chronologiques de models.py), fit_recalibrator (Platt = LogisticRegression(C=np.inf) sur logit(p), ou isotonique). penalty=None est déprécié depuis scikit-learn 1.8 : utiliser C=np.inf.
-- explain.py, partie SHAP : linear_contributions (logistique : coefficient × (valeur − moyenne d'entraînement) / écart type, en log-odds ; c'est la valeur de SHAP exacte d'un modèle linéaire), tree_contributions (LightGBM : booster_.predict(pred_contrib=True) = TreeSHAP), explain_game (6 variables qui pèsent le plus + probabilité après chaque étape). Vérifié dans le cloud : mêmes valeurs que shap.LinearExplainer / TreeExplainer (écart < 1e-15). Base + somme des contributions = prédiction exacte en log-odds (écart 2e-16).
+- explain.py, partie SHAP : linear_contributions (logistique : coefficient × (valeur − moyenne d'entraînement) / écart type, en log-odds ; c'est la valeur de SHAP exacte d'un modèle linéaire), tree_contributions (LightGBM : booster_.predict(pred_contrib=True) = TreeSHAP), explain_game (6 variables qui pèsent le plus + probabilité après chaque étape). Vérifié : mêmes valeurs que shap.LinearExplainer / TreeExplainer (écart < 1e-15). Base + somme des contributions = prédiction exacte en log-odds (écart 2e-16).
 - Résultats calibration (test, 953 parties) : Logit Brier 0,175, ECE 2,8 points, pente 1,04 (IC 0,89 à 1,18), ordonnée 0,02 (IC −0,13 à 0,17), 10 déciles sur 10 dans l'IC ; LightGBM Brier 0,177, ECE 4,2 points, pente 1,06, 9 / 10. 35 % des parties annoncées à < 20 % ou > 80 %.
 - Recalibrage : aucun gardé (règle : meilleur au test ET IC bootstrap qui exclut 0). Platt +0,001 (IC −0,001 à +0,003), isotonique +0,007. Piège mesuré : les prédictions hors pli ont une pente de 0,93 (IC 0,86 à 1,00), trop sûres d'elles car venant de modèles entraînés sur moins de parties ; le modèle final n'a pas ce défaut (1,04 au test).
 - SHAP (moyenne |contribution|, log-odds, Logit) : or 0,82, dragons 0,41, XP 0,28, premier dragon 0,16, le reste < 0,10. LightGBM : même ordre (or, XP, dragons). Kills, tours, CS ont un petit effet négatif à or égal (l'or les compte déjà) : SHAP explique le modèle, pas une cause. Or et XP corrélés : lire leur contribution comme un bloc.
 - Plus grosse surprise du test : bleu annoncé à 96 %, rouge gagnant. Le décile annoncé 91 % perd 5 % du temps : attendu.
 - Décision : logistique de l'étape 13 gardée SANS recalibrage ; l'appli affichera sa probabilité telle quelle et l'explication linear_contributions + explain_game.
-- README : section « Calibration and explanations ». Guide : Claude Doc « Étape 14 : calibration et SHAP — guide » (https://claude.ai/artifact/H8NcYs6NpcFituLJ3acUe8). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape14/build_nb05.py.
+- README : section « Calibration and explanations ».
 
 ## Étape 15 faite : README en anglais avec résultats et figures (2 nov. 2026)
 - README.md réécrit pour la v1 publique : question du projet en une phrase, « Results at a glance » (74 %, log loss 0,524, AUC 0,81 ; or puis dragons ; probabilités fiables ; la limite vient de l'information, pas du modèle ; 2 fuites mesurées) avec 2 figures côte à côte, schéma du pipeline en Mermaid (GitHub le dessine), structure du dépôt à jour, « Reproducing the results », sections détaillées regroupées (Data pipeline, Analysis, Predicting the winner at 15 minutes), « Limitations » et « Roadmap ». Pourcentages à l'anglaise (74%, pas 74 %).
 - src/make_figures.py (choix : script plutôt que captures des notebooks, car les notebooks sont en français et les figures doivent se refaire à l'identique) : réutilise features.py / models.py / explain.py, même découpage et mêmes graines que les notebooks 03 à 05 ; affiche la log loss du test comme contrôle (attendu 0,5242). 4 PNG à 150 dpi dans docs/figures/ : win_rate_by_gold.png (déciles d'écart d'or, IC de Wilson), learning_curve.png (comme le notebook 04), calibration.png (courbe de fiabilité + histogramme des probabilités), shap_importance.png (moyenne |SHAP| de la logistique). Couleurs fixes : bleu = logistique, orange = LightGBM. matplotlib en mode Agg (pas de fenêtre). Aucun nouveau paquet.
-- Testé dans le cloud sur PostgreSQL 16 + 4 800 parties synthétiques (~12 s).
+- Testé sur PostgreSQL 16 + 4 800 parties synthétiques (~12 s).
 
 ## Étape 16 faite : tutoriel PyTorch (2 nov. 2026)
 - Pourquoi : le GRU (prochaine étape) demande PyTorch, où l'on écrit soi-même la boucle d'entraînement. On l'a d'abord validée sur un problème dont la réponse est connue : la logistique de l'étape 13 (log loss test 0,5242).
-- src/deep.py (écrit par Claude) : LogisticNet (une couche nn.Linear = la logistique) ; MLP (linéaire → ReLU → dropout → linéaire) ; train_model (AdamW, mini-lots de 128 mélangés, BCEWithLogitsLoss, arrêt précoce patience 20 sur une validation, retour aux poids de la meilleure époque, renvoie l'historique des pertes) ; predict_proba ; TorchClassifier = adaptateur au format scikit-learn (fit / predict_proba) pour réutiliser cross_validate / fit_predict / paired_bootstrap de models.py ; dans fit : StandardScaler appris sur l'entraînement du pli, 15 % de parties les plus récentes pour l'arrêt précoce. Les modèles renvoient des logits (sigmoïde dans la perte : plus stable).
+- src/deep.py : LogisticNet (une couche nn.Linear = la logistique) ; MLP (linéaire → ReLU → dropout → linéaire) ; train_model (AdamW, mini-lots de 128 mélangés, BCEWithLogitsLoss, arrêt précoce patience 20 sur une validation, retour aux poids de la meilleure époque, renvoie l'historique des pertes) ; predict_proba ; TorchClassifier = adaptateur au format scikit-learn (fit / predict_proba) pour réutiliser cross_validate / fit_predict / paired_bootstrap de models.py ; dans fit : StandardScaler appris sur l'entraînement du pli, 15 % de parties les plus récentes pour l'arrêt précoce. Les modèles renvoient des logits (sigmoïde dans la perte : plus stable).
 - notebooks/06_pytorch.ipynb (8 parties) : tenseurs ; autograd (exemple 3w = 9) ; données (mêmes que 13-15) ; logistique « à la main » (w, b, 2 000 pas, pénalité L2 de scikit-learn = ‖w‖² / (2 C n)) ; LogisticNet + train_model ; CV de 4 modèles puis test une fois avec bootstrap apparié ; aperçu du GRU (formes (parties, minutes, variables)) ; conclusions.
 - Résultats (exécuté par Paul, PyTorch 2.14.1+cpu) : à la main, coefficients = scikit-learn à 0,002 près, log loss test 0,5242 ; LogisticNet 0,5243 (meilleure époque 12 sur 32). CV : Logit PyTorch 0,5285, Logit scikit-learn 0,5297, MLP 16 neurones 0,5363, MLP 64 neurones 0,5401. Test : MLP 16 0,5285 contre 0,5242, écart +0,0044 (IC 95 % −0,0009 à +0,0094) ; précision 75,6 % contre 74,1 % mais log loss moins bonne. Conclusion : comme LightGBM, un modèle plus souple n'apporte rien à 15 min (effet presque linéaire, ~3 800 parties).
-- Testé d'abord dans le cloud (PostgreSQL 16 + 4 800 parties synthétiques, PyTorch 2.13 CPU, ~30 s). README : section « Neural networks (PyTorch) ». Guide : Claude Doc « Étape 16 : tutoriel PyTorch (guide pas à pas) » (https://claude.ai/artifact/6KpACAzuMuCk9fx8xjiq57). Générateur du notebook (pour Claude) : /mnt/project-files/lol-analytics/etape16/build_nb06.py.
+- Testé d'abord à part (PostgreSQL 16 + 4 800 parties synthétiques, PyTorch 2.13 CPU, ~30 s). README : section « Neural networks (PyTorch) ».
 
-## Prochaine étape : GRU, probabilité de victoire minute par minute (bloc « Janvier : deep learning »)
-Construire des séquences (parties, minutes, variables) à partir de participant_frames et events (toutes les minutes sont en base), entraîner un GRU avec train_model (une probabilité par minute), et le comparer à LightGBM / à la logistique minute par minute, avec le même découpage chronologique.
+## Étape 17 faite : GRU minute par minute vs logistique par minute et LightGBM (2-3 nov. 2026)
+- But : une probabilité de victoire du bleu à chaque minute (la courbe de l'appli), et savoir si un GRU qui lit l'historique fait mieux que des modèles qui ne voient que l'état du moment.
+- src/sequences.py : build_minute_features(games) = une ligne par (partie, minute), à partir des parties de build_features() (même test) ; FRAMES_SQL (or, XP, CS par minute en écarts, dernière frame de chaque partie retirée car prise à l'instant de la fin) + EVENTS_SQL (un « genre » et un signe par event) puis cumul pandas par partie ; un event compte à la minute t si timestamp < t × 60 000 ms (même règle qu'à l'étape 12). 16 variables (SEQ_FEATURES) = les 11 FEATURES + heralds_diff, barons_diff, elders_diff (dragon ancestral, à part de dragons_diff), inhibs_diff, kills_1min_diff (kills de la dernière minute, non cumulé). check_against_15 (comparaison avec build_features à la minute 15), split_games (découpage par partie), to_padded (tableaux 3D (parties, 60 minutes, variables), padding 0 / NaN après la fin).
+- Trois modèles avec la même interface fit(tableau long) / predict(tableau long) : PerMinuteLogit (une make_logit par minute, 40 min et plus regroupées), StackedLGBM (un make_lgbm sur toutes les lignes, minute en variable, 400 arbres, 15 feuilles, 200 lignes par feuille), SequenceGRU (WinGRU 32 neurones d'état, dropout 0,2, AdamW lr 3e-3, weight decay 1e-3, lots de 64 parties, patience 10, clip 1 ; 15 % des parties d'entraînement les plus récentes pour l'arrêt précoce ; scaler appris sur le reste). Évaluation : game_folds / cross_validate_minutes (TimeSeriesSplit sur la liste des parties), scores_by_minute, bootstrap_games (IC en tirant des parties entières : les ~30 lignes d'une partie ne sont pas indépendantes ; le bootstrap par lignes donne un intervalle ~3 fois trop étroit).
+- src/deep.py : + WinGRU (nn.GRU unidirectionnel → dropout → nn.Linear, un logit par minute), masked_bce (log loss sur les minutes jouées seulement), train_model(loss_fn=None, clip=None) : valeurs par défaut = comportement de l'étape 16.
+- notebooks/07_gru.ipynb (7 parties) : données et contrôles, tableaux 3D, premier GRU + test de causalité (modifier la partie après la minute 20 ne change pas les minutes 1-20 : écart 0,0), CV des 3 modèles, test une fois (global, par minute, bootstrap par partie), une partie racontée, conclusions.
+- Résultats (exécuté par Paul le 3 nov., 4 762 parties, 141 149 lignes ; lecture de la base ~4 min) : CV log loss Logit par minute 0,5461, GRU 0,5483, LightGBM 0,5541. Test Logit 0,5327 (AUC 0,802, 72,0 %), LightGBM 0,5345, GRU 0,5359. Bootstrap par partie : GRU − LightGBM +0,0015 (IC −0,0036 à +0,0064), GRU − Logit +0,0033 (IC −0,0014 à +0,0080), LightGBM − Logit +0,0018 (IC −0,0021 à +0,0057) → aucune différence. À la minute 15, Logit par minute 0,5241 = étape 13 (0,5242). Log loss par minute : 0,648 (5 min), 0,524 (15), 0,402 (25), puis 0,467 (30) et 0,487 (35) : à 35 min il ne reste que 205 parties de test sur 953, les plus serrées (biais de sélection).
+- Deux contrôles non nuls, vérifiés dans data/raw et bénins : écart 2,0 à 15 min sur first_blood (7 parties) et first_tower (1) où les deux équipes font le premier kill / la première tour à la même milliseconde (égalité départagée différemment par les deux codes) ; 17 parties dont la durée tombe pile sur une minute (ex. 1 680 s) et dont la frame de la minute 28 est à 28:00,5, une demi-seconde avant la fin (arrondi de gameDuration, la frame de fin est bien retirée).
+- Décision : pour l'appli, la logistique par minute (PerMinuteLogit) : meilleure en CV, aussi bonne au test, entraînée en 2 s (GRU ~80 s en CV), explicable minute par minute avec les contributions de l'étape 14. Raison : variables cumulées → l'état à la minute t contient déjà l'histoire utile. Limites : une seule taille de GRU, ~3 800 parties, pas de positions / vision / objets.
+- Testé d'abord à part (PostgreSQL 16 + 4 800 parties synthétiques complètes, ~2 min). README : section « Win probability minute by minute ».
+
+## Prochaine étape : bonus, mini démo en direct (avant l'appli Streamlit)
+API locale « Live Client Data » du jeu sur le PC → features à 15 min → appel du modèle ; usage perso et analyse uniquement, jamais en compétition (règles Riot). Ajoutée au PLAN le 3 nov. 2026 à la demande de Paul.
+
+Ensuite, appli Streamlit (bloc « Février : produit ») :
+Riot ID → parties du joueur, courbe de probabilité minute par minute (PerMinuteLogit), moments clés (plus fortes variations de la courbe) et explication par minute (contributions de l'étape 14).
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
 - Choix : pas de win dans participants (déduit de teams) ; totalGold et pas currentGold ; killerId 0 de Riot -> NULL ; events.killer_team_id = équipe qui GAGNE l'objectif (pour BUILDING_KILL et TURRET_PLATE_DESTROYED, le teamId de Riot est l'équipe qui perd le bâtiment, donc on stocke 300 - teamId) ; puuid uniquement dans players (un seul endroit à pseudonymiser).
 - Testé sur PostgreSQL 16 : le script s'exécute sans erreur et la partie EUW1_7995392565 se charge entièrement. Or à la minute 15 : équipe 100 = 26 387, équipe 200 = 27 591 (écart bleu - rouge = -1 204).
 - Points à gérer à la collecte (étape 7) : convertir gameCreation (ms) en date ; killerId 0 -> NULL ; ignorer les events non listés ; parties de moins de 15 min (pas de frame 15) ; CHAMPION_KILL avec killerId 0 = exécution (tueur NULL, killer_team_id à déduire de la victime).
-- Guide détaillé : guide-etape-5-mcd-mld.md (dans les fichiers du projet claude, pas dans le dépôt).
+- Guide détaillé : guide-etape-5-mcd-mld.md (hors dépôt).
 
 ## Fichiers
 - src/explore.py : charge la clé avec load_dotenv(), appelle account-v1 (Riot ID -> puuid), match-v5 /ids (5 dernières parties), puis match-v5 /matches/{MATCH_ID} (MATCH_ID = EUW1_7995392565, fixé en dur, comme explore_timeline.py) et enregistre le JSON dans data/match_exemple.json (encoding utf-8). Vérifie par un assert que le matchId correspond. Affiche la liste des ids.
@@ -216,21 +222,22 @@ Construire des séquences (parties, minutes, variables) à partir de participant
 - src/features.py : features à 15 min et score de scaling, importé par les modèles (voir « Étape 12 faite ») ; variables candidates build_extra_features (voir « Étape 13 bis faite »).
 - src/models.py : modèles, préparation sans fuite, validation croisée, bootstrap (voir « Étape 13 faite »).
 - src/explain.py : calibration (courbe de fiabilité, recalibrage) et valeurs de SHAP (voir « Étape 14 faite »).
-- src/deep.py : modèles PyTorch, boucle d'entraînement, adaptateur scikit-learn (voir « Étape 16 faite »).
+- src/deep.py : modèles PyTorch (LogisticNet, MLP, WinGRU), boucle d'entraînement, adaptateur scikit-learn (voir « Étape 16 faite » et « Étape 17 faite »).
+- src/sequences.py : données minute par minute, 3 modèles par minute, évaluation par partie (voir « Étape 17 faite »).
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
 - README.md : présentation en anglais de la v1 (résultats, figures, pipeline, installation, limites, mention légale Riot).
 - src/make_figures.py et docs/figures/ : figures du README (voir « Étape 15 faite »).
 - PLAN.md : plan par étapes avec cases à cocher.
-- CLAUDE.md : contexte pour Claude Code (local, ignoré par Git).
 - sql/schema.sql : schéma PostgreSQL (7 tables, voir « Étape 5 faite »).
 - notebooks/01_exploration.ipynb : analyse exploratoire (voir « Étape 10 faite »).
 - notebooks/02_regression.ipynb : tests par régression logistique (voir « Étape 11 faite »).
 - notebooks/03_models.ipynb : logistique vs LightGBM (voir « Étape 13 faite »).
 - notebooks/04_improvements.ipynb : courbe d'apprentissage et nouvelles variables (voir « Étape 13 bis faite »).
 - notebooks/05_calibration.ipynb : calibration et explications SHAP (voir « Étape 14 faite »).
-- notebooks/06_pytorch.ipynb : tutoriel PyTorch, logistique et MLP (voir « Étape 16 faite »). tests/ : vide (un .gitkeep).
+- notebooks/06_pytorch.ipynb : tutoriel PyTorch, logistique et MLP (voir « Étape 16 faite »).
+- notebooks/07_gru.ipynb : GRU vs logistique par minute vs LightGBM (voir « Étape 17 faite »). tests/ : vide (un .gitkeep).
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}
@@ -284,14 +291,14 @@ Par équipe :
 - 401 Unauthorized : clé expirée, à régénérer sur developer.riotgames.com puis la remettre dans .env
 - 27 oct. : 401 juste après avoir régénéré la clé (account-v1 passait, match-v5 refusait) ; relancé une minute plus tard, tout marchait. Une nouvelle clé met parfois une minute à être active partout : attendre et relancer.
 - Warning Git LF/CRLF sur Windows : sans danger
-- Ctrl+P ne trouve pas les fichiers de data/ car ils sont ignorés par Git : ouvrir avec "code data/fichier.json" (pareil pour CLAUDE.md)
+- Ctrl+P ne trouve pas les fichiers de data/ car ils sont ignorés par Git : ouvrir avec "code data/fichier.json"
 - 22 oct. : une capture d'écran du terminal montrait le début de la clé Riot. Recadrer les captures avant de les envoyer.
 - 2 nov. : TypeError « unexpected keyword argument 'oof' » après une mise à jour de src/models.py : le noyau du notebook gardait l'ancienne version en mémoire (Python n'importe un module qu'une fois). Après avoir modifié un .py importé : Restart du noyau, puis Run All.
 
 ## Règles
-- Docker : Claude rappelle à Paul, au début de chaque séance qui utilise la base, d'ouvrir Docker Desktop puis de faire `docker compose start`, et à la fin, de faire `docker compose stop` puis de fermer Docker Desktop (demande de Paul du 26 oct. 2026).
-- Ne jamais committer .env, data/ ni CLAUDE.md
+- Docker : au début de chaque séance qui utilise la base, ouvrir Docker Desktop puis `docker compose start` ; à la fin, `docker compose stop` puis fermer Docker Desktop.
+- Ne jamais committer .env ni data/
 - Ne jamais coller la clé Riot dans le chat (afficher .env avec (Get-Content .env) -replace '=.*','=***')
 - Pseudonymiser les identifiants des autres joueurs
 - Clé de dev = usage perso uniquement, pas de site public
-- À la fin de chaque étape : Claude met à jour CONTEXT.md, PLAN.md est coché, commit + push, puis Claude recopie lui-même PLAN.md et CONTEXT.md dans les fichiers du projet claude.ai (knowledge/claude/)
+- À la fin de chaque étape : mettre à jour CONTEXT.md, cocher PLAN.md, commit + push.
