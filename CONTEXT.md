@@ -12,7 +12,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 3 nov. 2026, fin de l'étape 17 = GRU minute par minute)
+## État d'avancement (mis à jour le 3 nov. 2026, fin de l'étape bonus = mini démo en direct)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -48,6 +48,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   20. 419c62b Etape 14 : calibration et explications SHAP (src/explain.py, notebooks/05_calibration.ipynb, README, PLAN, CONTEXT) — commit + push par Paul le 2 nov.
   21. 0bb2be6 Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul le 2 nov. Vérifié sur GitHub (fichiers identiques, figures conformes aux chiffres du README : 7 % / 94 %, SHAP or 0,82, dragons 0,41, XP 0,28).
   22. c60f229 Etape 16 : tutoriel PyTorch, logistique et MLP (src/deep.py, notebooks/06_pytorch.ipynb, README, PLAN, CONTEXT, requirements.txt avec torch 2.14.1) — commit + push par Paul le 2 nov. Vérifié sur GitHub (6 fichiers identiques).
+  23. bbfae9e Etape 17 : GRU minute par minute vs logistique et LightGBM (src/sequences.py, src/deep.py, notebooks/07_gru.ipynb, README, PLAN, CONTEXT, .gitignore) — commit + push par Paul le 3 nov. Vérifié sur GitHub (fichiers identiques).
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -194,10 +195,17 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Décision : pour l'appli, la logistique par minute (PerMinuteLogit) : meilleure en CV, aussi bonne au test, entraînée en 2 s (GRU ~80 s en CV), explicable minute par minute avec les contributions de l'étape 14. Raison : variables cumulées → l'état à la minute t contient déjà l'histoire utile. Limites : une seule taille de GRU, ~3 800 parties, pas de positions / vision / objets.
 - Testé d'abord à part (PostgreSQL 16 + 4 800 parties synthétiques complètes, ~2 min). README : section « Win probability minute by minute ».
 
-## Prochaine étape : bonus, mini démo en direct (avant l'appli Streamlit)
-API locale « Live Client Data » du jeu sur le PC → features à 15 min → appel du modèle ; usage perso et analyse uniquement, jamais en compétition (règles Riot). Ajoutée au PLAN le 3 nov. 2026 à la demande de Paul.
+## Étape bonus faite : mini démo en direct (3 nov. 2026)
+- But : afficher pendant une partie, sur le PC de Paul, la probabilité de victoire chaque minute. Usage perso et analyse uniquement, jamais en compétition, rien de distribué (règles Riot) ; ne lit que l'API locale « Live Client Data » (https://127.0.0.1:2999, ouverte par le jeu pendant une partie, certificat auto-signé donc verify=False, aucune clé API).
+- src/live.py, 4 commandes : train (base nécessaire : compare au test l'étape 17 et les variantes live, puis entraîne sur toutes les parties et enregistre data/live_model.joblib), watch [--minute N] (lit allgamedata toutes les 5 s, une ligne par minute, CSV + état brut de chaque minute dans data/live_captures/watch_<date>/), dump (instantané JSON), replay FICHIER.
+- L'API live est plus pauvre que la timeline : pas d'event pour les plaques ni les larves, le niveau au lieu de l'XP, creepScore (par pas de 10), pas l'or des autres joueurs. Variables live définies pareil à l'entraînement : xp_k = XP minimale du niveau (180 (L−1) + 50 L (L−1), LIVE_FRAMES_SQL), CS arrondi à 10 par joueur. Events : kill pour l'équipe adverse de la victime (comme load.py), tours et inhibiteurs lus dans le NOM du bâtiment (format réel Turret_TChaos_L1_P3_… / Turret_TOrder_…, différent de la doc Turret_T1_… : les deux gérés).
+- L'or est retiré : la valeur des objets (prix Data Dragon gold.total ; le champ price du jeu n'est que le prix de la dernière combinaison) est un mauvais substitut. Sur 293 timelines, inventaire reconstitué à 15 min : corrélation 0,78 avec le vrai écart d'or, erreur typique 1 465. En partie contre l'IA : +1,6 k affiché pour +9,0 k réel ; dans une 2e partie, un Malphite AFK avait 2 150 d'objets pour 12 377 d'or gagné (or non dépensé). La valeur des objets reste dans le CSV (items_k), pour information.
+- Deux modèles (PerMinuteLogit de l'étape 17) : « sans or » (13 variables : xp_k, cs_diff + 11 variables d'events) = modèle principal ; « events » (11 variables). Test (4 762 parties, même test) : étape 17 0,5327 ; or exact + XP/CS live 0,5326 ; sans or 0,5365 (+0,0038, IC −0,0010 à +0,0085, non significatif) ; events 0,5483 (+0,0156, IC +0,0085 à +0,0224). À 15 min : 0,5241 / 0,5270 / 0,5345 / 0,5465. Raison : l'or vient surtout des kills, CS, tours et XP, déjà dans le modèle.
+- Contrôles : test bout en bout à part (parties de la base → faux JSON de l'API → mêmes variables qu'à l'entraînement, écart 0 sur 4 520 (partie, minute)) ; capture réelle en outil d'entraînement (équipes ORDER/CHAOS, KillerName = riotIdGameName) ; 2 parties contre l'IA comparées au tableau de fin (kills +13 à 20:00 puis 46-32 à la fin ; niveaux, CS et objets adverses à jour chaque minute : pas d'effet du brouillard de guerre). L'ordre de allPlayers change d'un instantané à l'autre (sans effet sur les sommes par équipe).
+- Vérifié à cette occasion : les étapes 1 à 17 n'utilisent jamais les objets ; l'or de la base (totalGold de la dernière frame) = goldEarned de fin de partie pour les 2 910 joueurs de 300 parties de data/raw (rapport 1,000).
+- README : section « Live demo (personal use only) ».
 
-Ensuite, appli Streamlit (bloc « Février : produit ») :
+## Prochaine étape : appli Streamlit (bloc « Février : produit »)
 Riot ID → parties du joueur, courbe de probabilité minute par minute (PerMinuteLogit), moments clés (plus fortes variations de la courbe) et explication par minute (contributions de l'étape 14).
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
@@ -224,6 +232,7 @@ Riot ID → parties du joueur, courbe de probabilité minute par minute (PerMinu
 - src/explain.py : calibration (courbe de fiabilité, recalibrage) et valeurs de SHAP (voir « Étape 14 faite »).
 - src/deep.py : modèles PyTorch (LogisticNet, MLP, WinGRU), boucle d'entraînement, adaptateur scikit-learn (voir « Étape 16 faite » et « Étape 17 faite »).
 - src/sequences.py : données minute par minute, 3 modèles par minute, évaluation par partie (voir « Étape 17 faite »).
+- src/live.py : démo en direct, API locale du jeu → probabilité chaque minute (voir « Étape bonus faite »). Fichiers créés dans data/ (ignorés par Git) : live_model.joblib, ddragon_items.json (prix des objets), live_captures/.
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
@@ -293,6 +302,7 @@ Par équipe :
 - Warning Git LF/CRLF sur Windows : sans danger
 - Ctrl+P ne trouve pas les fichiers de data/ car ils sont ignorés par Git : ouvrir avec "code data/fichier.json"
 - 22 oct. : une capture d'écran du terminal montrait le début de la clé Riot. Recadrer les captures avant de les envoyer.
+- 3 nov. : ReadTimeout sur 127.0.0.1:2999 à la fin d'une partie (le jeu se ferme, l'API ne répond plus quelques secondes) : corrigé, watch s'arrête proprement.
 - 2 nov. : TypeError « unexpected keyword argument 'oof' » après une mise à jour de src/models.py : le noyau du notebook gardait l'ancienne version en mémoire (Python n'importe un module qu'une fois). Après avoir modifié un .py importé : Restart du noyau, puis Run All.
 
 ## Règles

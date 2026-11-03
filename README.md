@@ -4,7 +4,7 @@
 
 End-to-end data project on ranked Solo/Duo matches (EUW): collection through the Riot API, a PostgreSQL database, statistical tests, a win-prediction model with leakage-free validation, calibration checks and SHAP explanations.
 
-> **Status: v1.** Data pipeline, 15-minute win model and minute-by-minute win probability are done. Next: a Streamlit app.
+> **Status: v1.** Data pipeline, 15-minute win model, minute-by-minute win probability and a live demo are done. Next: a Streamlit app.
 
 ## Results at a glance
 
@@ -49,6 +49,7 @@ lol-analytics/
 │   ├── explain.py        # calibration tools and SHAP values
 │   ├── deep.py           # PyTorch models (MLP, GRU) and training loop
 │   ├── sequences.py      # minute-by-minute data, per-minute models, game-level evaluation
+│   ├── live.py           # live demo: local game API -> win probability each minute (personal use)
 │   └── make_figures.py   # rebuilds the README figures
 ├── notebooks/
 │   ├── 01_exploration.ipynb   # exploratory analysis
@@ -221,6 +222,30 @@ Gold difference dominates (0.82), then dragons (0.41) and XP (0.28). Kills, towe
 | LightGBM | 0.554 | 0.535 |
 
 On the test set the GRU is +0.003 behind the per-minute logistic regression (95% CI −0.001 to +0.008) and +0.002 behind LightGBM (CI −0.004 to +0.006): no detectable difference. Gold, towers and objectives are cumulative, so the state at minute *t* already summarises the match; recent momentum, the one thing only the GRU sees, adds nothing measurable with ~3,800 training matches. At minute 15 the per-minute model scores 0.5241, the same as the 15-minute model (0.5242). Log loss falls from 0.65 at 5 minutes to 0.40 at 25 minutes, then rises again (0.49 at 35 minutes): matches still running that late are the close ones. The app will use the per-minute logistic regression.
+
+## Live demo (personal use only)
+
+`src/live.py` reads the game's local [Live Client Data API](https://developer.riotgames.com/docs/lol) (`https://127.0.0.1:2999`, served by the game on the player's own PC during a match) and prints the win probability once per minute. Personal use and analysis only: never in competitive play, not distributed, and it only reads what the in-game scoreboard already shows.
+
+- **Less data than the timeline.** There are no events for turret plates or Void Grubs, only levels instead of XP, CS in steps of 10, and no gold for the other nine players. The live model is the per-minute logistic regression retrained on what the API provides, with XP (minimum XP of the current level) and CS (rounded down to 10) computed the same way in training, so the model sees the same definitions in training and in a game.
+- **Gold is left out.** The item value of the ten players looks like a substitute, but rebuilt from 293 match timelines it correlates only 0.78 with the real gold gap at 15 minutes (typical error 1,500 gold). In a real game it was fooled by unspent gold: an AFK player held about 10,000 gold with 2,150 gold of items.
+- **What it costs**, on the same test set (log loss, all match-minutes):
+
+| Model | Test log loss | vs per-minute model (95% CI, bootstrap over matches) |
+|---|---|---|
+| Per-minute logistic regression (16 features, timeline data) | 0.5327 | |
+| Live, no gold (13 features) | **0.5365** | +0.004 (−0.001 to +0.009) |
+| Live, events only (11 features) | 0.5483 | +0.016 (+0.009 to +0.022) |
+
+  Gold mostly comes from kills, CS, towers and XP, which the no-gold model already sees, so dropping it costs little. At minute 15 the no-gold model scores 0.5345 (0.5241 with the timeline data).
+- **Checked end to end.** Matches from the database turned into fake API payloads give exactly the training features (4,520 match-minutes compared). Two games against bots were checked against the end-of-game scoreboard. Tower names in the real game (`Turret_TChaos_L1_P3_...`) differ from the documented format (`Turret_T2_L_03_A`); both are handled.
+
+```bash
+python src/live.py train                # retrains the live models (needs the database)
+python src/live.py watch                # during a match: one line per minute
+python src/live.py watch --minute 15    # a single line at 15 minutes
+python src/live.py dump                 # saves the raw game state (JSON) for debugging
+```
 
 ## Limitations
 
