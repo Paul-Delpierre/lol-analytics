@@ -58,6 +58,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   26. d293a8f Etape 19 : Docker Compose (appli + base), tests pytest, GitHub Actions (Dockerfile, .dockerignore, docker-compose.yml, requirements.txt avec pytest 9.2.0, requirements-app.txt, pyproject.toml, tests/, .github/workflows/tests.yml, README, PLAN, CONTEXT) — commit + push par Paul le 4 nov.
   27. 589289f CI : installer les dépendances de PyTorch depuis PyPI — commit + push par Paul le 4 nov. Les 3 tâches GitHub Actions vertes (unit 46 passed + 2 skipped, database 2 passed, docker OK).
   28. 799f7dd Etape 19 : PLAN coché et hashes dans CONTEXT (PLAN.md et CONTEXT.md, absents du commit d293a8f) — commit + push par Paul le 4 nov.
+  29. 664b1bc Etape 20 : GIF de démo dans le README et modèle de l'appli en Release (src/make_demo.py, docs/demo.gif, README, PLAN, CONTEXT) — commit + push par Paul le 4 nov. Vérifié sur GitHub : 5 fichiers identiques, Release v2.0 (tag sur 664b1bc, « latest ») avec app_model.joblib (63 260 octets, SHA-256 29cedd6d…, même empreinte après téléchargement par le lien du README), 3 tâches GitHub Actions vertes.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -251,6 +252,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Vie privée : le GIF montre le Riot ID de Paul (le sien, déjà public) ; les autres joueurs n'y sont désignés que par leur champion (readable_events, scoreboard). Ne jamais filmer le Riot ID d'un ami.
 - Release v2.0 sur GitHub : data/app_model.joblib (63 Ko : les coefficients des 40 logistiques, aucune donnée de joueur) en fichier joint, avec son empreinte SHA-256. Lien stable : releases/latest/download/app_model.joblib. README, « Trying the app without collecting data » : télécharger le modèle dans data/, mettre sa clé Riot dans .env, docker compose up -d --build app (l'appli seule, sans base). Un .joblib est un pickle Python (il peut exécuter du code au chargement) : d'où l'empreinte à vérifier ; modèle enregistré avec scikit-learn 1.9.1 (même version dans l'image Docker).
 - Testé d'abord à part sur les parties en cache de Paul (faux client Riot) : 68 images, 28 s, 1,1 Mo ; couleurs et curseur vérifiés image par image.
+- Sur le PC de Paul (4 nov.) : clé valide, --game 0 = sa Miss Fortune du 26/09 (victoire 6/7/3 en 32 min, 15 % vers 20 min puis 97 %, la plus belle remontée de ses 20 parties) ; docs/demo.gif 69 images, 28 s, 1,2 Mo.
 - README : statut v2, GIF + légende en tête, make_demo.py et docs/demo.gif dans la structure, sections « Trying the app without collecting data » et « Recording the demo GIF », Roadmap (tout le plan prévu est fait).
 
 ## Prochaine étape
