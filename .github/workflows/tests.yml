@@ -57,9 +57,11 @@ jobs:
           cache: pip
           cache-dependency-path: requirements*.txt
       - name: Installer les paquets, pytest et PyTorch (version CPU, plus légère)
+        # Le dépôt de PyTorch n'a pas toutes les versions de ses dépendances (filelock...) :
+        # on les prend sur PyPI aux versions de requirements.txt, puis torch seul (--no-deps).
         run: |
-          pip install -r requirements-app.txt pytest -c requirements.txt
-          pip install torch -c requirements.txt --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-app.txt pytest filelock fsspec jinja2 networkx sympy typing_extensions setuptools -c requirements.txt
+          pip install torch --no-deps -c requirements.txt --index-url https://download.pytorch.org/whl/cpu
       - name: Lancer le test avec base
         run: python -m pytest -m db
 
