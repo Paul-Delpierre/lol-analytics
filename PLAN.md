@@ -32,7 +32,7 @@
 
 ## Février : produit → v2
 - [x] Appli Streamlit (Riot ID → parties, courbe, moments clés) — src/app.py, mêmes variables qu'à l'entraînement (écart 0 sur 200 parties), bilan de fiabilité par joueur
-- [ ] Docker Compose (appli + base), tests pytest, GitHub Actions
+- [x] Docker Compose (appli + base), tests pytest, GitHub Actions — image de l'appli sans PyTorch, 48 tests (dont base vs JSON sur PostgreSQL), 3 tâches GitHub Actions à chaque push
 - [ ] GIF de démo dans le README
 
 ## Règles
