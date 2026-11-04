@@ -31,7 +31,7 @@
 - [x] Bonus : mini démo en direct (src/live.py : API locale « Live Client Data » → probabilité chaque minute) — or retiré (valeur des objets = mauvais substitut), logistique par minute « sans or » 0,5365 vs 0,5327 ; usage perso et analyse uniquement, jamais en compétition (règles Riot)
 
 ## Février : produit → v2
-- [ ] Appli Streamlit (Riot ID → parties, courbe, moments clés)
+- [x] Appli Streamlit (Riot ID → parties, courbe, moments clés) — src/app.py, mêmes variables qu'à l'entraînement (écart 0 sur 200 parties), bilan de fiabilité par joueur
 - [ ] Docker Compose (appli + base), tests pytest, GitHub Actions
 - [ ] GIF de démo dans le README
 

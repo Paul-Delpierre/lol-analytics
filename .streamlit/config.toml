@@ -1,0 +1,10 @@
+# Réglages de l'appli (streamlit run src/app.py).
+[server]
+# Pas d'ouverture automatique du navigateur ni de question au premier lancement :
+# ouvrir soi-même http://localhost:8501.
+headless = true
+# L'appli n'écoute que ce PC (clé de développement Riot : pas de site public).
+address = "localhost"
+
+[browser]
+gatherUsageStats = false

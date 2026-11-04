@@ -37,23 +37,15 @@ from sklearn.preprocessing import StandardScaler
 
 from deep import SEED, WinGRU, masked_bce, set_seed, to_tensor, train_model
 from features import FEATURES, TARGET, database_url
+from match_minutes import (EVENT_COLUMNS, EVENT_KINDS, FIRSTS, FRAME_COLUMNS,  # noqa: F401
+                           LATE_FEATURES, MAX_MINUTE, SEQ_FEATURES, TIME, minute_table)
 from models import evaluate, make_lgbm, make_logit
 
 # ---------------------------------------------------------------------------
-# Les colonnes
+# Les colonnes : SEQ_FEATURES, TIME, MAX_MINUTE... sont définies dans match_minutes.py
+# depuis l'étape 18 (l'appli en a besoin sans PyTorch) et réimportées ci-dessus, pour
+# que « from sequences import SEQ_FEATURES » marche toujours (notebook 07, live.py).
 # ---------------------------------------------------------------------------
-# Les 11 variables de l'étape 12, plus ce qui compte surtout après 15 min.
-LATE_FEATURES = [
-    "heralds_diff",      # héraut de la faille (apparaît vers 14-16 min)
-    "barons_diff",       # baron Nashor (à partir de 20 min)
-    "elders_diff",       # dragon ancestral (après 4 dragons d'une équipe) ; pas dans dragons_diff
-    "inhibs_diff",       # inhibiteurs détruits
-    "kills_1min_diff",   # kills de la DERNIÈRE minute : qui est en surnombre en ce moment
-]
-SEQ_FEATURES = FEATURES + LATE_FEATURES
-TIME = "minute"
-MAX_MINUTE = 60          # au-delà, les parties sont coupées (très rares)
-
 # Chaque event utile devient un « genre » ; +1 s'il est pris par le bleu, −1 par le rouge.
 EVENTS_SQL = """
 SELECT match_id, timestamp_ms,
@@ -98,10 +90,6 @@ HAVING count(*) = 10
 ORDER BY f.match_id, f.minute
 """
 
-EVENT_KINDS = ["kills", "towers", "inhibs", "plates", "dragons", "elders", "grubs",
-               "heralds", "barons"]
-FIRSTS = {"first_blood": "kills", "first_tower": "towers", "first_dragon": "dragons"}
-
 
 # ---------------------------------------------------------------------------
 # 1. Les données minute par minute
@@ -116,40 +104,11 @@ def build_minute_features(games, max_minute=MAX_MINUTE, url=None):
     """
     params = {"ids": list(games["match_id"]), "max_minute": max_minute}
     with psycopg.connect(url or database_url()) as conn:
-        frames = pd.DataFrame(conn.execute(FRAMES_SQL, params).fetchall(),
-                              columns=["match_id", "minute", "gold_diff", "xp_diff", "cs_diff"])
-        events = pd.DataFrame(conn.execute(EVENTS_SQL, params).fetchall(),
-                              columns=["match_id", "timestamp_ms", "sign", "kind"])
-    frames[["gold_diff", "xp_diff", "cs_diff"]] = frames[["gold_diff", "xp_diff",
-                                                          "cs_diff"]].astype(float)
-    events = events.dropna(subset=["kind"])
-
-    # Un event compte à partir de la minute t si timestamp < t × 60 000 ms,
-    # c'est-à-dire t >= « case » = timestamp // 60 000 + 1 (même règle qu'à l'étape 12).
-    events["minute"] = events["timestamp_ms"] // 60_000 + 1
-
-    # Écarts PAR minute (somme des +1 / −1 de la minute), puis cumulés depuis le début.
-    per_minute = (events.groupby(["match_id", "minute", "kind"])["sign"].sum()
-                  .unstack("kind", fill_value=0)
-                  .reindex(columns=EVENT_KINDS, fill_value=0)
-                  .reset_index())
-    df = frames.merge(per_minute, on=["match_id", "minute"], how="left")
-    df[EVENT_KINDS] = df[EVENT_KINDS].fillna(0).astype(int)
-    df = df.sort_values(["match_id", "minute"])
-    df["kills_1min_diff"] = df["kills"]                     # la minute seule, PAS cumulée
-    cumulated = df.groupby("match_id")[EVENT_KINDS].cumsum()
-    for kind in EVENT_KINDS:
-        df[f"{kind}_diff"] = cumulated[kind]
-
-    # Premiers objectifs : +1 / −1 à partir de la minute où ils ont eu lieu, 0 avant.
-    first = events.sort_values("timestamp_ms").drop_duplicates(["match_id", "kind"])
-    for col, kind in FIRSTS.items():
-        f = first[first["kind"] == kind].set_index("match_id")
-        when, who = df["match_id"].map(f["minute"]), df["match_id"].map(f["sign"])
-        df[col] = np.where(df[TIME] >= when, who, 0).astype(int)  # NaN (jamais) -> 0
-
-    df["gold_k"] = df["gold_diff"] / 1000
-    df["xp_k"] = df["xp_diff"] / 1000
+        frames = pd.DataFrame(conn.execute(FRAMES_SQL, params).fetchall(), columns=FRAME_COLUMNS)
+        events = pd.DataFrame(conn.execute(EVENTS_SQL, params).fetchall(), columns=EVENT_COLUMNS)
+    # Le calcul lui-même est dans match_minutes.minute_table() : l'appli l'applique
+    # aux parties téléchargées (JSON), exactement comme ici à la base.
+    df = minute_table(frames, events)
     df = df.merge(games[["match_id", "game_creation", TARGET]], on="match_id")
     df = df.sort_values(["game_creation", "minute"]).reset_index(drop=True)
     return df[["match_id", "game_creation", TIME] + SEQ_FEATURES + [TARGET]]

@@ -4,7 +4,7 @@
 
 End-to-end data project on ranked Solo/Duo matches (EUW): collection through the Riot API, a PostgreSQL database, statistical tests, a win-prediction model with leakage-free validation, calibration checks and SHAP explanations.
 
-> **Status: v1.** Data pipeline, 15-minute win model, minute-by-minute win probability and a live demo are done. Next: a Streamlit app.
+> **Status: v1.** Data pipeline, 15-minute win model, minute-by-minute win probability, a live demo and a local Streamlit app are done. Next: Docker Compose for the app, tests and CI.
 
 ## Results at a glance
 
@@ -15,6 +15,7 @@ On 4,762 ranked matches (patches 16.14 to 16.21), with the 953 most recent match
 - **The probabilities can be trusted as they are**: a match announced at 70% is won about 70% of the time (calibration error 2.8 points, all 10 deciles within their confidence interval). No recalibration needed.
 - **The limit is the information, not the model.** More matches, more features, tuning and ensembling all failed to improve the test score.
 - **Minute by minute, a GRU does not beat a logistic regression per minute** (test log loss 0.536 vs 0.533, difference not significant): the cumulative game state already carries the history (see [Win probability minute by minute](#win-probability-minute-by-minute)).
+- **A local Streamlit app** turns any Riot ID into win-probability curves, key moments and per-minute explanations, with features computed by the same code as in training (checked: zero difference on 200 matches; see [Streamlit app](#streamlit-app)).
 - **Two data leaks were found and measured**, not just avoided (see [Model comparison](#model-comparison-logistic-regression-vs-lightgbm)).
 
 | Gold at 15 minutes vs the final result | Calibration on the test set |
@@ -49,6 +50,10 @@ lol-analytics/
 │   ├── explain.py        # calibration tools and SHAP values
 │   ├── deep.py           # PyTorch models (MLP, GRU) and training loop
 │   ├── sequences.py      # minute-by-minute data, per-minute models, game-level evaluation
+│   ├── match_minutes.py  # minute-by-minute features, shared by training (database) and the app (JSON)
+│   ├── winprob.py        # the app's model: training, predictions, key moments, explanations
+│   ├── riot_games.py     # the app's Riot API access with an on-disk cache
+│   ├── app.py            # Streamlit app (local)
 │   ├── live.py           # live demo: local game API -> win probability each minute (personal use)
 │   └── make_figures.py   # rebuilds the README figures
 ├── notebooks/
@@ -60,6 +65,7 @@ lol-analytics/
 │   ├── 06_pytorch.ipynb       # PyTorch: logistic regression and MLP
 │   └── 07_gru.ipynb           # minute by minute: GRU vs per-minute logit vs LightGBM
 ├── sql/schema.sql        # database schema (7 tables)
+├── .streamlit/config.toml # app settings (local only, no usage stats)
 ├── docs/figures/         # README figures
 ├── data/                 # local data (not versioned)
 └── docker-compose.yml    # PostgreSQL 16
@@ -89,8 +95,16 @@ python src/check_db.py             # should list the 7 tables
 python src/collect.py --riot-id "GameName#TAG" --max-matches 5000   # a few hours
 python src/load.py                 # insert the new matches
 python src/quality.py              # checks, prints OK / ATTENTION
-# then run notebooks/01 to 06 in order
+# then run notebooks/01 to 07 in order
 python src/make_figures.py         # regenerate docs/figures/
+```
+
+### Running the app
+
+```bash
+python src/winprob.py train        # once: trains the app's model (needs the database), ~5 min
+python src/winprob.py check        # optional: app features vs database features, should print 0.0
+streamlit run src/app.py           # then open http://localhost:8501
 ```
 
 Your numbers will differ slightly: the sample depends on the starting player and on the patches you collect.
@@ -223,6 +237,17 @@ Gold difference dominates (0.82), then dragons (0.41) and XP (0.28). Kills, towe
 
 On the test set the GRU is +0.003 behind the per-minute logistic regression (95% CI −0.001 to +0.008) and +0.002 behind LightGBM (CI −0.004 to +0.006): no detectable difference. Gold, towers and objectives are cumulative, so the state at minute *t* already summarises the match; recent momentum, the one thing only the GRU sees, adds nothing measurable with ~3,800 training matches. At minute 15 the per-minute model scores 0.5241, the same as the 15-minute model (0.5242). Log loss falls from 0.65 at 5 minutes to 0.40 at 25 minutes, then rises again (0.49 at 35 minutes): matches still running that late are the close ones. The app will use the per-minute logistic regression.
 
+## Streamlit app
+
+`src/app.py`, run locally with `streamlit run src/app.py`. Enter a Riot ID: the app downloads the player's latest ranked Solo/Duo matches and, for each one, shows the probability that **the player's team** wins at every minute, the key moments, and what drives the probability at any chosen minute. It runs on the developer's own machine only: a Riot development key does not allow a public site.
+
+- **Model.** The per-minute logistic regression of the previous section (16 features, exact gold from the timeline), retrained on all 4,762 matches. Before saving, `python src/winprob.py train` re-checks the test score (log loss 0.5327, AUC 0.802, as above). The app only loads the saved model: it needs neither the database nor PyTorch.
+- **Same features in training and in the app.** Training reads the database; the app reads the JSON of the Riot API. Both now call one function (`minute_table` in `src/match_minutes.py`), and the JSON is turned into the same two inputs as the SQL queries, with the same rules as the loader (who gets credit for a building, final frame dropped). `python src/winprob.py check` compares both paths on 200 collected matches: **6,042 match-minutes, largest difference 0.0**.
+- **Key moments.** Between two minutes, both the game state and the model change (each minute has its own regression: 1,000 gold matter more at 10 minutes than at 30). The change is split exactly into the part due to what happened in the game, f<sub>t</sub>(x<sub>t</sub>) − f<sub>t</sub>(x<sub>t−1</sub>), and the part due to time, f<sub>t</sub>(x<sub>t−1</sub>) − f<sub>t−1</sub>(x<sub>t−1</sub>). The five minutes with the largest game-driven change are shown with the events of that minute (champions only: other players are never named).
+- **Explanations.** Exact SHAP values of the logistic regression (coefficient × distance to the average), with the model of the chosen minute, as in [Calibration and explanations](#calibration-and-explanations).
+- **Is the model reliable for this player?** For 10, 15 and 20 minutes the app compares correct calls and log loss with what the model's own probabilities predict, and runs a Monte Carlo test (20,000 simulated outcomes) to tell bad luck from a real gap. On 141 matches of three players at 15 minutes: 94 correct calls for 102 expected, log loss 0.553 for 0.539 expected; a gap at least this large happens by chance 35% of the time, and the calibration slope is 1.00. No sign that the model reads these players worse.
+- **Robust to the API.** The Riot client of the collection step handles rate limits and retries; downloaded matches are cached in `data/app_cache/` (kept apart from the training data), and when the 24-hour development key has expired the app falls back to the matches already downloaded.
+
 ## Live demo (personal use only)
 
 `src/live.py` reads the game's local [Live Client Data API](https://developer.riotgames.com/docs/lol) (`https://127.0.0.1:2999`, served by the game on the player's own PC during a match) and prints the win probability once per minute. Personal use and analysis only: never in competitive play, not distributed, and it only reads what the in-game scoreboard already shows.
@@ -255,7 +280,7 @@ python src/live.py dump                 # saves the raw game state (JSON) for de
 
 ## Roadmap
 
-- **App**: Streamlit dashboard (Riot ID → matches, win-probability curve, key moments), Docker Compose, pytest and GitHub Actions.
+- **App**: Docker Compose (app + database), pytest and GitHub Actions; a demo GIF in this README.
 
 ## Data & privacy
 

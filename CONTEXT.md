@@ -8,11 +8,11 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), et leurs dépendances
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), streamlit 1.66.1 + altair 6.3.0 + pyarrow 26.0.1 (étape 18), et leurs dépendances
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
 
-## État d'avancement (mis à jour le 3 nov. 2026, fin de l'étape bonus = mini démo en direct)
+## État d'avancement (mis à jour le 4 nov. 2026, fin de l'étape 18 = appli Streamlit)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -25,6 +25,8 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape 15 « README en anglais avec résultats et figures » faite le 2 nov. 2026 : README réécrit (résultats en tête, schéma du pipeline, 4 figures, limites), src/make_figures.py → docs/figures/ (voir « Étape 15 faite »). Fin du bloc « v1 publique ».
 - Étape 16 « Tutoriel PyTorch » faite le 2 nov. 2026 : src/deep.py + notebooks/06_pytorch.ipynb, la logistique refaite en PyTorch retrouve 0,5242, le MLP ne fait pas mieux (voir « Étape 16 faite »).
 - Étape 17 « GRU minute par minute, comparaison avec LightGBM » faite le 3 nov. 2026 : src/sequences.py + notebooks/07_gru.ipynb, le GRU ne bat pas la logistique par minute, gardée pour l'appli (voir « Étape 17 faite »). Fin du bloc « Janvier : deep learning ».
+- Étape bonus « Mini démo en direct » faite le 3 nov. 2026 : src/live.py (voir « Étape bonus faite »).
+- Étape 18 « Appli Streamlit (Riot ID → parties, courbe, moments clés) » faite le 4 nov. 2026 : src/app.py + src/match_minutes.py, src/winprob.py, src/riot_games.py ; mêmes variables qu'à l'entraînement (écart 0 sur 200 parties), bilan de fiabilité par joueur (voir « Étape 18 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -49,6 +51,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   21. 0bb2be6 Etape 15 : README anglais avec résultats et figures (README, src/make_figures.py, docs/figures/*.png, PLAN, CONTEXT) — commit + push par Paul le 2 nov. Vérifié sur GitHub (fichiers identiques, figures conformes aux chiffres du README : 7 % / 94 %, SHAP or 0,82, dragons 0,41, XP 0,28).
   22. c60f229 Etape 16 : tutoriel PyTorch, logistique et MLP (src/deep.py, notebooks/06_pytorch.ipynb, README, PLAN, CONTEXT, requirements.txt avec torch 2.14.1) — commit + push par Paul le 2 nov. Vérifié sur GitHub (6 fichiers identiques).
   23. bbfae9e Etape 17 : GRU minute par minute vs logistique et LightGBM (src/sequences.py, src/deep.py, notebooks/07_gru.ipynb, README, PLAN, CONTEXT, .gitignore) — commit + push par Paul le 3 nov. Vérifié sur GitHub (fichiers identiques).
+  24. 509c2d9 Etape bonus : mini démo en direct, Live Client Data, modèle sans or (src/live.py, README, PLAN, CONTEXT) — commit + push par Paul le 3 nov.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -205,8 +208,20 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Vérifié à cette occasion : les étapes 1 à 17 n'utilisent jamais les objets ; l'or de la base (totalGold de la dernière frame) = goldEarned de fin de partie pour les 2 910 joueurs de 300 parties de data/raw (rapport 1,000).
 - README : section « Live demo (personal use only) ».
 
-## Prochaine étape : appli Streamlit (bloc « Février : produit »)
-Riot ID → parties du joueur, courbe de probabilité minute par minute (PerMinuteLogit), moments clés (plus fortes variations de la courbe) et explication par minute (contributions de l'étape 14).
+## Étape 18 faite : appli Streamlit (4 nov. 2026)
+- But : taper un Riot ID et voir, pour chacune de ses dernières parties classées solo/duo, la probabilité de victoire de SON équipe à chaque minute, les moments clés et ce qui pèse sur la probabilité à la minute choisie. Usage local uniquement (`streamlit run src/app.py`, http://localhost:8501) : la clé de développement interdit un site public.
+- Streamlit : un script Python relancé de haut en bas à chaque clic ; st.cache_resource pour ce qui se partage (modèle, client Riot avec ses limites de débit), st.cache_data pour les résultats (liste de parties, ttl 10 min ; analyse d'une partie). Graphiques Altair. .streamlit/config.toml : headless, localhost seulement, pas de statistiques d'usage.
+- src/match_minutes.py (nouveau) : minute_table(frames, events) = LE calcul des 16 SEQ_FEATURES, déplacé de sequences.py. Deux chemins l'appellent : l'entraînement (base, FRAMES_SQL / EVENTS_SQL de sequences.py) et l'appli (JSON de l'API : frames_from_json / events_from_json fabriquent les deux mêmes tableaux, avec event_team de load.py pour savoir à qui compte un bâtiment, dernière frame retirée). Raison : éviter le « training-serving skew » (variables calculées autrement en service qu'à l'entraînement). Aussi : readable_events (champions seulement, aucun pseudo), game_summary, scoreboard. sequences.py réexporte les constantes (SEQ_FEATURES, MAX_MINUTE…) : notebook 07 et live.py inchangés, sortie identique.
+- src/winprob.py : train (étape 17 refaite : PerMinuteLogit 16 variables, or exact ; contrôle du test puis entraînement sur les 4 762 parties → data/app_model.joblib = dictionnaire des 40 logistiques scikit-learn, sans torch, l'appli n'a besoin ni de la base ni de PyTorch) ; check --n 200 (JSON de data/raw vs base) ; predict, contributions (valeurs de SHAP exactes de l'étape 14, avec le modèle de chaque minute), key_moments, explain_minute, player_report.
+- Moments clés : entre deux minutes, l'état de la partie ET le modèle changent (une régression par minute : 1 000 d'or comptent plus à 10 min qu'à 30). Δp = [f_t(x_t) − f_t(x_{t−1})] (part des events) + [f_t(x_{t−1}) − f_{t−1}(x_{t−1})] (part du temps), décomposition exacte ; on garde les 5 minutes où la part des events est la plus forte, avec les events de la minute.
+- Bilan « fiabilité du modèle sur ce joueur » (ajouté après les 4/10 de Paul) : à 10, 15 et 20 min, bons pronostics vs attendus (Σ max(p, 1−p)), log loss vs attendue (entropie moyenne), « hasard » = test de Monte-Carlo (20 000 tirages des résultats selon les probabilités du modèle : part des tirages où la log loss est au moins aussi mauvaise que l'observée ; sous 5 % = le modèle lit vraiment moins bien ce joueur), remontées et avances perdues. Vérifié : sous l'hypothèse « le modèle est juste », le hasard est uniforme (6 % des cas sous 5 %).
+- src/riot_games.py : client RiotClient de l'étape 7 (limites de débit, 429, clé refusée) ; cache data/app_cache/ (matches/, timelines/, players/), à part de data/raw pour ne pas mélanger avec les données d'entraînement ; si la clé a expiré, l'appli reprend la dernière liste de parties gardée, avec un avertissement.
+- Résultats (exécuté par Paul le 4 nov.) : train 4 762 parties, 141 149 lignes, lecture de la base 279 s ; test log loss 0,5327, AUC 0,802 (= étape 17) ; modèle de 40 logistiques, patchs 16.14 à 16.21. check : 200 parties, 6 042 (partie, minute) comparées, plus grand écart base / JSON = 0,0.
+- Fiabilité sur 3 joueurs (dont Paul, TECHNIQUEMENT#99999), 50 parties chacun, à 15 min : Paul 37 bons pronostics pour 37,4 attendus (hasard 44 %), joueur 2 28 pour 33,4 (25 %), joueur 3 31 pour 35,2 (33 %). Ensemble, 141 parties : 94 pour 102 attendus, log loss 0,553 pour 0,539 attendue, hasard 35 %, pente de calibration 1,00 ; les patchs hors entraînement (16.6 à 16.13) ne font pas pire. Conclusion : compatible avec le hasard (légère tendance, les trois minutes 10/15/20 ne sont pas des tests indépendants). Les 4/10 du début : 6,9 attendus, P(≤ 4) ≈ 5 %, 10 parties c'est peu.
+- Testé d'abord à part (PostgreSQL 16 : 4 800 parties synthétiques + 25 vraies parties du PC, écart 0 ; appli dans un navigateur sans écran avec un faux client Riot : Riot ID mal écrit, inconnu, clé expirée). README : sections « Running the app » et « Streamlit app ».
+
+## Prochaine étape : Docker Compose (appli + base), tests pytest, GitHub Actions (bloc « Février : produit »)
+Lancer l'appli et la base avec une seule commande, des tests automatiques (pytest, d'abord sur match_minutes.py et split_riot_id avec de petits JSON d'exemple) et les faire tourner sur GitHub à chaque push (GitHub Actions). Puis un GIF de démo pour le README.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -233,6 +248,11 @@ Riot ID → parties du joueur, courbe de probabilité minute par minute (PerMinu
 - src/deep.py : modèles PyTorch (LogisticNet, MLP, WinGRU), boucle d'entraînement, adaptateur scikit-learn (voir « Étape 16 faite » et « Étape 17 faite »).
 - src/sequences.py : données minute par minute, 3 modèles par minute, évaluation par partie (voir « Étape 17 faite »).
 - src/live.py : démo en direct, API locale du jeu → probabilité chaque minute (voir « Étape bonus faite »). Fichiers créés dans data/ (ignorés par Git) : live_model.joblib, ddragon_items.json (prix des objets), live_captures/.
+- src/match_minutes.py : calcul unique des variables minute par minute (base et JSON), résumé et événements lisibles d'une partie (voir « Étape 18 faite »). src/sequences.py l'importe depuis l'étape 18.
+- src/winprob.py : modèle de l'appli (train, check), prédiction, contributions, moments clés, bilan de fiabilité (voir « Étape 18 faite »).
+- src/riot_games.py : parties d'un joueur pour l'appli, API Riot + cache disque (voir « Étape 18 faite »).
+- src/app.py : l'appli Streamlit (voir « Étape 18 faite »). .streamlit/config.toml : réglages de Streamlit (localhost, pas de statistiques).
+- data/app_model.joblib (modèle de l'appli) et data/app_cache/ (parties téléchargées par l'appli) : créés par winprob.py train et par l'appli. Ignorés par Git.
 - data/match_exemple.json : JSON complet de la partie EUW1_7995392565. Ignoré par Git.
 - data/timeline_exemple.json : timeline de la même partie (34 frames). Ignoré par Git.
 - requirements.txt : versions exactes des paquets (pip freeze), en UTF-8. Pour le régénérer : `pip freeze | Out-File -Encoding utf8 requirements.txt` (sinon PowerShell l'écrit en UTF-16 et GitHub l'affiche mal).
@@ -303,6 +323,7 @@ Par équipe :
 - Ctrl+P ne trouve pas les fichiers de data/ car ils sont ignorés par Git : ouvrir avec "code data/fichier.json"
 - 22 oct. : une capture d'écran du terminal montrait le début de la clé Riot. Recadrer les captures avant de les envoyer.
 - 3 nov. : ReadTimeout sur 127.0.0.1:2999 à la fin d'une partie (le jeu se ferme, l'API ne répond plus quelques secondes) : corrigé, watch s'arrête proprement.
+- 4 nov. : « clé refusée » (401) dans l'appli Streamlit : clé expirée. La régénérer, enregistrer .env, puis Ctrl+C dans le terminal et relancer streamlit run src/app.py (la clé n'est lue qu'au démarrage).
 - 2 nov. : TypeError « unexpected keyword argument 'oof' » après une mise à jour de src/models.py : le noyau du notebook gardait l'ancienne version en mémoire (Python n'importe un module qu'une fois). Après avoir modifié un .py importé : Restart du noyau, puis Run All.
 
 ## Règles
