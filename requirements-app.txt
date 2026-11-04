@@ -1,0 +1,18 @@
+# Paquets de l'appli Streamlit seule (image Docker, tests sur GitHub) : sans PyTorch,
+# LightGBM pour les notebooks, Jupyter... Les VERSIONS viennent de requirements.txt :
+#   pip install -r requirements-app.txt -c requirements.txt
+# (-c = « contraintes » : prends exactement la version écrite dans requirements.txt.)
+streamlit
+altair
+pyarrow
+pandas
+numpy
+scipy
+scikit-learn
+joblib
+statsmodels      # src/explain.py (importé par winprob.py)
+lightgbm         # src/models.py (importé par explain.py)
+psycopg
+psycopg-binary   # src/features.py et load.py importent psycopg
+python-dotenv
+requests

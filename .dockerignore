@@ -1,0 +1,18 @@
+# Ce que Docker ne doit JAMAIS copier dans l'image (COPY ignore ces chemins).
+# Secrets : la clé Riot reste sur le PC, l'appli la reçoit au lancement (env_file).
+.env
+# Données : trop grosses, et privées ; montées au lancement (volume ./data).
+data/
+# Le reste ne sert pas à l'appli et alourdirait l'image.
+.git/
+.github/
+.venv/
+venv/
+notebooks/
+docs/
+tests/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+*.joblib
+*.md

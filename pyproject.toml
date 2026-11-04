@@ -1,0 +1,10 @@
+# Réglages de pytest (python -m pytest, depuis la racine du projet).
+[tool.pytest.ini_options]
+# Le code est dans src/ et s'importe par « from match_minutes import ... » (comme dans
+# les notebooks) : pytest ajoute src/ aux chemins d'import.
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"   # en fin de rapport, la raison de chaque test sauté
+markers = [
+    "db: a besoin d'une base PostgreSQL de test (TEST_DATABASE_URL), sauté sinon",
+]

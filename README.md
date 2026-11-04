@@ -1,10 +1,12 @@
 # LoL Analytics
 
+[![tests](https://github.com/Paul-Delpierre/lol-analytics/actions/workflows/tests.yml/badge.svg)](https://github.com/Paul-Delpierre/lol-analytics/actions/workflows/tests.yml)
+
 **Can you tell who will win a League of Legends match at 15 minutes, and how much should you trust that guess?**
 
 End-to-end data project on ranked Solo/Duo matches (EUW): collection through the Riot API, a PostgreSQL database, statistical tests, a win-prediction model with leakage-free validation, calibration checks and SHAP explanations.
 
-> **Status: v1.** Data pipeline, 15-minute win model, minute-by-minute win probability, a live demo and a local Streamlit app are done. Next: Docker Compose for the app, tests and CI.
+> **Status: v1.** Data pipeline, 15-minute win model, minute-by-minute win probability, a live demo and a local Streamlit app are done; the app and the database start with one Docker Compose command, and tests run on every push (GitHub Actions). Next: a demo GIF.
 
 ## Results at a glance
 
@@ -64,11 +66,17 @@ lol-analytics/
 │   ├── 05_calibration.ipynb   # calibration and SHAP
 │   ├── 06_pytorch.ipynb       # PyTorch: logistic regression and MLP
 │   └── 07_gru.ipynb           # minute by minute: GRU vs per-minute logit vs LightGBM
+├── tests/                # pytest: features, Riot ID, model functions, database vs JSON
 ├── sql/schema.sql        # database schema (7 tables)
 ├── .streamlit/config.toml # app settings (local only, no usage stats)
+├── .github/workflows/tests.yml # CI: unit tests, database test, Docker build
 ├── docs/figures/         # README figures
 ├── data/                 # local data (not versioned)
-└── docker-compose.yml    # PostgreSQL 16
+├── Dockerfile            # image of the Streamlit app (no PyTorch, no secrets, non-root)
+├── docker-compose.yml    # PostgreSQL 16 + the app
+├── requirements.txt      # exact versions of every package
+├── requirements-app.txt  # the app's packages only (image and CI)
+└── pyproject.toml        # pytest settings
 ```
 
 ## Setup
@@ -106,6 +114,21 @@ python src/winprob.py train        # once: trains the app's model (needs the dat
 python src/winprob.py check        # optional: app features vs database features, should print 0.0
 streamlit run src/app.py           # then open http://localhost:8501
 ```
+
+Or with Docker, once the model is trained (it is read from `data/`, the Riot key from `.env`):
+
+```bash
+docker compose up -d --build       # database + app, then open http://localhost:8501
+docker compose stop                # stop both (data kept)
+```
+
+### Running the tests
+
+```bash
+python -m pytest                   # ~50 tests in a few seconds, no API key, no data needed
+```
+
+The database test is skipped unless `TEST_DATABASE_URL` points to an empty database whose name ends in `_test` (it wipes it). With the Docker database: `docker compose exec db createdb -U lol lol_test`, then set `TEST_DATABASE_URL=postgresql://lol:lol@localhost:5433/lol_test`.
 
 Your numbers will differ slightly: the sample depends on the starting player and on the patches you collect.
 
@@ -272,6 +295,13 @@ python src/live.py watch --minute 15    # a single line at 15 minutes
 python src/live.py dump                 # saves the raw game state (JSON) for debugging
 ```
 
+## Tests, Docker and CI
+
+- **Tests** (`tests/`, pytest). Real matches are not in the repository, so the tests build fake ones in the exact Riot JSON format (`tests/conftest.py`): a quiet game with hand-placed events when the right answer is known, or a random game with every event type, including the tricky ones (executions, buildings credited to the team that did *not* lose them, monsters killed by no team, the elder dragon). They pin down the rules the model depends on: an event at 12:34 is first seen at minute 13, cumulative vs last-minute counts, first objectives, the final frame dropped, signs from the blue side; the app's explanations add up exactly to its predictions and the red side mirrors the blue side; other players are never named.
+- **Training-serving skew test.** `tests/test_db_vs_json.py` is the automatic version of `winprob.py check`: it creates the schema in an empty PostgreSQL database, inserts 12 random games with the real loader, then computes the minute-by-minute features both ways (SQL for training, JSON for the app). They must be identical. It caught a real subtlety while it was written: the 15-minute features count the elder dragon among dragons, the minute-by-minute ones keep it apart; both are right because no elder dragon can spawn before 15 minutes.
+- **Docker.** `docker compose up -d` starts the database and the app. The app image holds the code and the packages it needs (no PyTorch, about 280 MB compressed), runs as a non-root user, and contains no secret and no data: `.env` is read at start-up and `data/` (model, cache) is mounted from the host. Inside Docker's network the app reaches the database as `db:5432`; from the host it stays `localhost:5433`. Both ports are bound to `127.0.0.1` only.
+- **CI** (`.github/workflows/tests.yml`), on every push to `main` and every pull request, on a fresh Linux machine: the unit tests; the database test against a PostgreSQL 16 service; and a build of the Docker image, started and checked through Streamlit's health endpoint. No API key and no data are needed.
+
 ## Limitations
 
 - **Sample**: about 5,000 EUW Solo/Duo matches from a snowball that starts at one player, over eight patches. It is not a random sample of the ladder, and rank is not used.
@@ -280,7 +310,7 @@ python src/live.py dump                 # saves the raw game state (JSON) for de
 
 ## Roadmap
 
-- **App**: Docker Compose (app + database), pytest and GitHub Actions; a demo GIF in this README.
+- **App**: a demo GIF in this README.
 
 ## Data & privacy
 

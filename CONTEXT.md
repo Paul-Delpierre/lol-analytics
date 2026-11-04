@@ -8,11 +8,11 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), streamlit 1.66.1 + altair 6.3.0 + pyarrow 26.0.1 (étape 18), et leurs dépendances
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), streamlit 1.66.1 + altair 6.3.0 + pyarrow 26.0.1 (étape 18), pytest (étape 19), et leurs dépendances. requirements-app.txt (étape 19) : la liste des seuls paquets de l'appli (sans version : les versions viennent de requirements.txt avec -c)
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
-- Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres
+- Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres ; à partir de l'étape 19, l'appli Streamlit tourne aussi dans le conteneur lol-app (image lol-analytics-app)
 
-## État d'avancement (mis à jour le 4 nov. 2026, fin de l'étape 18 = appli Streamlit)
+## État d'avancement (mis à jour le 4 nov. 2026, fin de l'étape 19 = Docker Compose, tests, GitHub Actions)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -27,6 +27,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape 17 « GRU minute par minute, comparaison avec LightGBM » faite le 3 nov. 2026 : src/sequences.py + notebooks/07_gru.ipynb, le GRU ne bat pas la logistique par minute, gardée pour l'appli (voir « Étape 17 faite »). Fin du bloc « Janvier : deep learning ».
 - Étape bonus « Mini démo en direct » faite le 3 nov. 2026 : src/live.py (voir « Étape bonus faite »).
 - Étape 18 « Appli Streamlit (Riot ID → parties, courbe, moments clés) » faite le 4 nov. 2026 : src/app.py + src/match_minutes.py, src/winprob.py, src/riot_games.py ; mêmes variables qu'à l'entraînement (écart 0 sur 200 parties), bilan de fiabilité par joueur (voir « Étape 18 faite »).
+- Étape 19 « Docker Compose (appli + base), tests pytest, GitHub Actions » faite le 4 nov. 2026 : Dockerfile + service app dans docker-compose.yml, tests/ (48 tests), .github/workflows/tests.yml (voir « Étape 19 faite »).
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -52,6 +53,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   22. c60f229 Etape 16 : tutoriel PyTorch, logistique et MLP (src/deep.py, notebooks/06_pytorch.ipynb, README, PLAN, CONTEXT, requirements.txt avec torch 2.14.1) — commit + push par Paul le 2 nov. Vérifié sur GitHub (6 fichiers identiques).
   23. bbfae9e Etape 17 : GRU minute par minute vs logistique et LightGBM (src/sequences.py, src/deep.py, notebooks/07_gru.ipynb, README, PLAN, CONTEXT, .gitignore) — commit + push par Paul le 3 nov. Vérifié sur GitHub (fichiers identiques).
   24. 509c2d9 Etape bonus : mini démo en direct, Live Client Data, modèle sans or (src/live.py, README, PLAN, CONTEXT) — commit + push par Paul le 3 nov.
+  25. b7c61d6 Etape 18 : appli Streamlit, courbe minute par minute, moments clés, fiabilité par joueur (src/app.py, src/match_minutes.py, src/winprob.py, src/riot_games.py, src/sequences.py, .streamlit/config.toml, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul le 4 nov.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -220,8 +222,22 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Fiabilité sur 3 joueurs (dont Paul, TECHNIQUEMENT#99999), 50 parties chacun, à 15 min : Paul 37 bons pronostics pour 37,4 attendus (hasard 44 %), joueur 2 28 pour 33,4 (25 %), joueur 3 31 pour 35,2 (33 %). Ensemble, 141 parties : 94 pour 102 attendus, log loss 0,553 pour 0,539 attendue, hasard 35 %, pente de calibration 1,00 ; les patchs hors entraînement (16.6 à 16.13) ne font pas pire. Conclusion : compatible avec le hasard (légère tendance, les trois minutes 10/15/20 ne sont pas des tests indépendants). Les 4/10 du début : 6,9 attendus, P(≤ 4) ≈ 5 %, 10 parties c'est peu.
 - Testé d'abord à part (PostgreSQL 16 : 4 800 parties synthétiques + 25 vraies parties du PC, écart 0 ; appli dans un navigateur sans écran avec un faux client Riot : Riot ID mal écrit, inconnu, clé expirée). README : sections « Running the app » et « Streamlit app ».
 
-## Prochaine étape : Docker Compose (appli + base), tests pytest, GitHub Actions (bloc « Février : produit »)
-Lancer l'appli et la base avec une seule commande, des tests automatiques (pytest, d'abord sur match_minutes.py et split_riot_id avec de petits JSON d'exemple) et les faire tourner sur GitHub à chaque push (GitHub Actions). Puis un GIF de démo pour le README.
+## Étape 19 faite : Docker Compose, tests pytest, GitHub Actions (4 nov. 2026)
+- But : lancer la base ET l'appli avec une seule commande (docker compose up -d), des tests automatiques, et les faire tourner sur GitHub à chaque push.
+- Dockerfile (image lol-analytics-app) : python:3.14.7-slim (même Python que le PC) + libgomp1 (OpenMP, pour LightGBM) ; paquets AVANT le code (cache de Docker : seule la copie du code est refaite après une modification) ; pip install -r requirements-app.txt -c requirements.txt (requirements-app.txt dit QUELS paquets, requirements.txt quelles VERSIONS) ; utilisateur appuser (pas root) ; STREAMLIT_SERVER_ADDRESS=0.0.0.0 (dans un conteneur, écouter « localhost » rendrait l'appli injoignable ; c'est le port 127.0.0.1:8501 de docker-compose.yml qui limite l'accès au PC). Sans PyTorch : 276 Mo compressés au lieu de plusieurs Go.
+- .dockerignore : .env, data/, .venv/, .git/, notebooks/, tests/... jamais copiés dans l'image. Les secrets et les données arrivent au lancement : env_file .env (required: false : l'appli démarre sans) et volume ./data:/app/data (modèle app_model.joblib et cache app_cache/ partagés avec le PC).
+- docker-compose.yml : service db inchangé (étape 6) + service app (container_name lol-app). DATABASE_URL de l'appli = postgresql://lol:lol@db:5432/lol : entre conteneurs, la base s'appelle « db » (nom du service) sur le port 5432 ; localhost:5433 n'existe que vu du PC. Pas de depends_on : l'appli ne lit pas la base (seulement le modèle). Healthcheck de l'appli : http://localhost:8501/_stcore/health (python, pas de curl dans l'image).
+- pyproject.toml : réglages de pytest (pythonpath = src, testpaths = tests, marqueur db).
+- tests/conftest.py : fausses parties au format exact de l'API Riot (data/ n'est pas dans le dépôt) : make_game(events) = partie calme où l'on place les events (réponse connue), random_game(seed) = partie au hasard avec tous les types d'events et les pièges (exécutions, bâtiment compté pour l'équipe qui NE le perd PAS, monstre sans équipe, dragon ancestral après 21 min).
+- tests/test_match_minutes.py (25 tests) : règle de la minute (event à 2:59.999 → minute 3, à 3:00.000 → minute 4), cumuls et kills_1min_diff, premiers objectifs, frame de fin et minute 0 retirées, frame incomplète ignorée, signe et genre de chaque type d'event, event_team de load.py, bout en bout, readable_events sans pseudo, game_summary vu du joueur. tests/test_riot_id.py (10) : split_riot_id, nom de fichier du cache sans « ../ ». tests/test_winprob.py (11) : petit modèle de même forme entraîné dans le test ; base + contributions = logit de predict, variation = part des events + part du temps, rouge = miroir du bleu, explain_minute retombe sur la prédiction, player_report, message clair si le modèle manque.
+- tests/test_db_vs_json.py (2, marqueur db) : version automatique de winprob.py check. Base VIDE (TEST_DATABASE_URL, nom obligatoirement en _test car le test efface tout), schema.sql, 12 parties au hasard insérées avec load.insert_match, puis variables minute par minute par la base (SQL de sequences.py) et par le JSON : écart 0 exigé ; et minute 15 = build_features. Sauté si TEST_DATABASE_URL n'est pas défini. A trouvé en l'écrivant : build_features (étape 12) compte le dragon ancestral avec les dragons, minute_table le met à part (elders_diff) ; sans effet réel, aucun ancestral avant 15 min.
+- Vérifié que les tests attrapent de vraies erreurs : règle de la minute changée → 4 tests rouges ; signe des bâtiments inversé → 5 ; frame de fin gardée dans FRAMES_SQL → le test base vs JSON rouge.
+- .github/workflows/tests.yml, à chaque push sur main et chaque pull request, 3 tâches sur une machine Linux neuve : unit (pytest), database (service PostgreSQL 16, base lol_test, PyTorch CPU, pytest -m db), docker (construit l'image, la lance, attend la réponse de /_stcore/health). Aucune clé Riot ni donnée. Badge en tête du README.
+- Testé d'abord à part : 48 tests verts (Python 3.13, PostgreSQL 16) ; image construite (Python 3.14.7) ; docker compose up : les deux conteneurs « healthy », l'appli charge le modèle depuis le volume, check_db.py lancé DANS le conteneur de l'appli trouve les 7 tables via db:5432.
+- README : badge, structure, « Running the app » (Docker), « Running the tests », section « Tests, Docker and CI ».
+
+## Prochaine étape : GIF de démo dans le README (bloc « Février : produit »)
+Enregistrer quelques secondes de l'appli (Riot ID → parties → courbe → moments clés) en GIF léger, l'ajouter en tête du README.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).
@@ -236,7 +252,7 @@ Lancer l'appli et la base avec une seule commande, des tests automatiques (pytes
 - src/resume_timeline.py : relit data/timeline_exemple.json (aucun appel API), compte les types d'events et calcule l'écart d'or entre les équipes à 15 min.
 - .env : contient RIOT_API_KEY=... (clé de développement, expire toutes les 24 h) et, à partir de l'étape 6, DATABASE_URL=postgresql://lol:lol@localhost:5433/lol. Ignoré par Git.
 - .env.example : modèle versionné, sans vraie clé. Contient aussi RIOT_PLATFORM=euw1, RIOT_REGION=europe (pas encore utilisés par le code : BASE est écrit en dur) et DATABASE_URL (utilisé par src/check_db.py).
-- docker-compose.yml : la base PostgreSQL 16 dans Docker (voir « Étape 6 »).
+- docker-compose.yml : la base PostgreSQL 16 dans Docker (voir « Étape 6 ») et, depuis l'étape 19, l'appli (voir « Étape 19 faite »).
 - src/riot_api.py et src/collect.py : client API et script de collecte (voir « Étape 7 faite » et « Étape 9 faite »).
 - data/raw/ : parties brutes compressées (matches/, timelines/, players_done.txt, collect.lock). 5 000 parties, 401 Mo au 28 oct. Ignoré par Git.
 - data/logs/collect.log : journal horodaté de la collecte (ajouté à chaque lancement). Ignoré par Git.
@@ -266,7 +282,10 @@ Lancer l'appli et la base avec une seule commande, des tests automatiques (pytes
 - notebooks/04_improvements.ipynb : courbe d'apprentissage et nouvelles variables (voir « Étape 13 bis faite »).
 - notebooks/05_calibration.ipynb : calibration et explications SHAP (voir « Étape 14 faite »).
 - notebooks/06_pytorch.ipynb : tutoriel PyTorch, logistique et MLP (voir « Étape 16 faite »).
-- notebooks/07_gru.ipynb : GRU vs logistique par minute vs LightGBM (voir « Étape 17 faite »). tests/ : vide (un .gitkeep).
+- notebooks/07_gru.ipynb : GRU vs logistique par minute vs LightGBM (voir « Étape 17 faite »).
+- Dockerfile, .dockerignore, requirements-app.txt : image de l'appli (voir « Étape 19 faite »). docker-compose.yml : base + appli.
+- pyproject.toml : réglages de pytest. tests/ : conftest.py (fausses parties), test_match_minutes.py, test_riot_id.py, test_winprob.py, test_db_vs_json.py (voir « Étape 19 faite »). Lancer : python -m pytest.
+- .github/workflows/tests.yml : GitHub Actions (voir « Étape 19 faite »). Résultats : onglet Actions du dépôt.
 
 ## Code existant (conventions)
 - HEADERS = {"X-Riot-Token": os.environ["RIOT_API_KEY"]}

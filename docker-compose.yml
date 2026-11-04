@@ -1,7 +1,8 @@
 # =====================================================================
-# LoL Analytics : base PostgreSQL dans Docker (étape 6)
-# Démarrer : docker compose up -d
-# Arrêter  : docker compose stop   (les données sont gardées)
+# LoL Analytics : la base PostgreSQL (étape 6) et l'appli Streamlit (étape 19)
+# Tout démarrer          : docker compose up -d --build   (--build : après un changement de code)
+# Arrêter / redémarrer   : docker compose stop / docker compose start   (données gardées)
+# Appli                  : http://localhost:8501
 # =====================================================================
 
 services:
@@ -22,6 +23,28 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  app:
+    build: .                           # l'image vient du Dockerfile de ce dossier
+    image: lol-analytics-app
+    container_name: lol-app
+    env_file:
+      - path: .env                     # la clé Riot (RIOT_API_KEY), lue au lancement, jamais dans l'image
+        required: false                # sans .env, l'appli démarre quand même (parties en cache)
+    environment:
+      # Entre conteneurs, la base s'appelle « db » (le nom du service) et écoute sur 5432 ;
+      # localhost:5433 n'existe que vu du PC. Cette valeur remplace celle du .env.
+      DATABASE_URL: postgresql://lol:lol@db:5432/lol
+    ports:
+      - "127.0.0.1:8501:8501"          # seulement depuis ce PC (clé de développement : pas de site public)
+    volumes:
+      - ./data:/app/data               # modèle (app_model.joblib) et cache des parties, partagés avec le PC
+    healthcheck:
+      # Streamlit répond « ok » sur cette adresse quand il est prêt (pas de curl dans l'image).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
 volumes:
   pgdata:
