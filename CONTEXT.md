@@ -8,11 +8,11 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Dépôt local : C:\Users\pauld\projets\lol-analytics (branche main). Sorti de OneDrive le 28 oct. 2026 (ancien chemin : C:\Users\pauld\OneDrive\Bureau\lol-analytics). Garder le nom du dossier lol-analytics : Docker nomme le volume de la base d'après lui (lol-analytics_pgdata).
 - GitHub : https://github.com/Paul-Delpierre/lol-analytics (public)
 - Python 3.14.7, venv .venv (activé automatiquement dans le terminal de VS Code, le prompt commence par (.venv))
-- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), streamlit 1.66.1 + altair 6.3.0 + pyarrow 26.0.1 (étape 18), pytest (étape 19), et leurs dépendances. requirements-app.txt (étape 19) : la liste des seuls paquets de l'appli (sans version : les versions viennent de requirements.txt avec -c)
+- Paquets (requirements.txt) : requests 2.34.2, pandas 3.0.6, numpy 2.5.4, python-dotenv 1.2.4, psycopg 3.3.6 + psycopg-binary 3.3.6 (ajoutés à l'étape 6), matplotlib 3.11.2 + ipykernel 7.4.0 (ajoutés à l'étape 10), statsmodels 0.15.0 (étape 11), scikit-learn 1.9.1 + lightgbm 4.7.0 (étape 13), torch 2.14.1 en version CPU (étape 16, pas de carte NVIDIA), streamlit 1.66.1 + altair 6.3.0 + pyarrow 26.0.1 (étape 18), pytest (étape 19), et leurs dépendances. Hors requirements.txt : playwright 1.63.0 + son navigateur Chromium (étape 20, outil pour fabriquer le GIF de démo, pas une dépendance du projet). requirements-app.txt (étape 19) : la liste des seuls paquets de l'appli (sans version : les versions viennent de requirements.txt avec -c)
 - Notebooks : ouverts dans VS Code (extension Jupyter), noyau « .venv (3.14.7) » choisi avec Select Kernel. Pas de paquet jupyter complet : VS Code n'a besoin que d'ipykernel.
 - Docker Desktop (à partir de l'étape 6) : PostgreSQL 16 tourne dans le conteneur lol-postgres ; à partir de l'étape 19, l'appli Streamlit tourne aussi dans le conteneur lol-app (image lol-analytics-app)
 
-## État d'avancement (mis à jour le 4 nov. 2026, fin de l'étape 19 = Docker Compose, tests, GitHub Actions)
+## État d'avancement (mis à jour le 4 nov. 2026, fin de l'étape 20 = GIF de démo + Release du modèle ; tout le PLAN est fait)
 - Étapes faites (cochées dans PLAN.md) : dépôt GitHub, venv + paquets, clé Riot + premiers appels (account-v1, match-v5 /ids et /matches/{id}), étape 4 « Comprendre le format JSON d'une partie et de sa timeline », étape 5 « MCD / MLD → sql/schema.sql » (schéma écrit et testé le 23 oct.), étape 6 « PostgreSQL dans Docker » (base lancée sur le PC le 26 oct.), étape 7 « Script de collecte » (testée sur le PC le 27 oct. : 80 parties dans data/raw).
 - Étape 8 « Insertion en base + contrôles qualité » faite le 27 oct. 2026 (testée sur le PC : 10/10 contrôles OK).
 - Étape 9 « Lancer la collecte en fond » faite le 28 oct. 2026 : 5 000 parties sur le disque, 4 907 en base, contrôles 8/10 OK + 2 avertissements expliqués (voir « Étape 9 faite »).
@@ -28,6 +28,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - Étape bonus « Mini démo en direct » faite le 3 nov. 2026 : src/live.py (voir « Étape bonus faite »).
 - Étape 18 « Appli Streamlit (Riot ID → parties, courbe, moments clés) » faite le 4 nov. 2026 : src/app.py + src/match_minutes.py, src/winprob.py, src/riot_games.py ; mêmes variables qu'à l'entraînement (écart 0 sur 200 parties), bilan de fiabilité par joueur (voir « Étape 18 faite »).
 - Étape 19 « Docker Compose (appli + base), tests pytest, GitHub Actions » faite le 4 nov. 2026 : Dockerfile + service app dans docker-compose.yml, tests/ (48 tests), .github/workflows/tests.yml (voir « Étape 19 faite »).
+- Étape 20 « GIF de démo dans le README » faite le 4 nov. 2026 : src/make_demo.py → docs/demo.gif en tête du README, modèle de l'appli publié dans la Release v2.0 (voir « Étape 20 faite »). Fin du bloc « Février : produit » : tout le PLAN est fait.
 - Historique Git :
   1. Initial project structure
   2. Update plan: mark repo creation as done
@@ -56,6 +57,7 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
   25. b7c61d6 Etape 18 : appli Streamlit, courbe minute par minute, moments clés, fiabilité par joueur (src/app.py, src/match_minutes.py, src/winprob.py, src/riot_games.py, src/sequences.py, .streamlit/config.toml, requirements.txt, README, PLAN, CONTEXT) — commit + push par Paul le 4 nov.
   26. d293a8f Etape 19 : Docker Compose (appli + base), tests pytest, GitHub Actions (Dockerfile, .dockerignore, docker-compose.yml, requirements.txt avec pytest 9.2.0, requirements-app.txt, pyproject.toml, tests/, .github/workflows/tests.yml, README, PLAN, CONTEXT) — commit + push par Paul le 4 nov.
   27. 589289f CI : installer les dépendances de PyTorch depuis PyPI — commit + push par Paul le 4 nov. Les 3 tâches GitHub Actions vertes (unit 46 passed + 2 skipped, database 2 passed, docker OK).
+  28. 799f7dd Etape 19 : PLAN coché et hashes dans CONTEXT (PLAN.md et CONTEXT.md, absents du commit d293a8f) — commit + push par Paul le 4 nov.
 - Vérification du 26 oct. 2026 : étapes 1 à 5 complètes. Le dépôt GitHub et le dossier du PC sont identiques (mêmes fichiers, même contenu), aucun secret ni fichier de data/ dans l'historique Git, .gitignore correct.
 - Étape 4 en résumé : la timeline de EUW1_7995392565 a été récupérée (34 frames, partie d'environ 33 min) et enregistrée dans data/timeline_exemple.json. Sa structure est décrite plus bas.
 
@@ -240,8 +242,19 @@ LoL Analytics : analyse de parties League of Legends via l'API Riot, projet pers
 - GitHub Actions : 1er passage (d293a8f), tâche database rouge : le dépôt de paquets de PyTorch n'a pas filelock 4.2.6 (ResolutionImpossible). Correction (589289f) : dépendances de torch installées depuis PyPI avec -c requirements.txt, puis torch --no-deps depuis l'index CPU. 2e passage : 3 tâches vertes.
 - README : badge, structure, « Running the app » (Docker), « Running the tests », section « Tests, Docker and CI ».
 
-## Prochaine étape : GIF de démo dans le README (bloc « Février : produit »)
-Enregistrer quelques secondes de l'appli (Riot ID → parties → courbe → moments clés) en GIF léger, l'ajouter en tête du README.
+## Étape 20 faite : GIF de démo dans le README + Release du modèle (4 nov. 2026)
+- But : montrer l'appli en 30 secondes en tête du README (un recruteur ne lance pas le code), et permettre à un inconnu de l'essayer sans collecter 5 000 parties.
+- src/make_demo.py : un navigateur sans écran (Playwright, Chromium) joue un scénario fixe sur l'appli déjà lancée (http://localhost:8501) : taper le Riot ID lettre par lettre, Chercher, attendre les parties, survoler la courbe (infobulle), descendre aux moments clés, bouger le curseur « Minute ». Une capture après chaque action, avec sa durée d'affichage ; les captures sont assemblées en GIF avec Pillow.
+- Pourquoi un script et pas un enregistreur d'écran (ScreenToGif, OBS) : rejouable à l'identique après chaque changement de l'appli, rien d'autre que la page n'est filmé (ni barre des tâches ni notifications), taille du fichier maîtrisée. Playwright plutôt qu'une vidéo convertie : pas besoin de ffmpeg, et chaque capture est prise au bon moment.
+- Trois détails : (1) attendre Streamlit : après un cran de curseur, il relance le script environ 0,5 s plus tard ; on attend que l'icône « Running » APPARAISSE puis disparaisse (sinon on photographie l'ancienne page : curseur sur 17, texte encore sur 16). (2) Une seule palette de 256 couleurs pour tout le GIF, apprise (octree) sur une mosaïque de captures prises tout au long de la démo : avec la palette d'une seule image, les barres vertes devenaient grises et les points orange saumon. (3) Deux captures identiques à la suite = une seule, affichée plus longtemps (fichier léger). Menu et icône « Running » de Streamlit masqués par CSS. Arrêt avec un message clair si l'appli affiche une erreur Python.
+- Options : --riot-id (obligatoire), --game (0 = partie la plus récente), --count, --width (960), --colors (256), --url, --out (docs/demo.gif).
+- Vie privée : le GIF montre le Riot ID de Paul (le sien, déjà public) ; les autres joueurs n'y sont désignés que par leur champion (readable_events, scoreboard). Ne jamais filmer le Riot ID d'un ami.
+- Release v2.0 sur GitHub : data/app_model.joblib (63 Ko : les coefficients des 40 logistiques, aucune donnée de joueur) en fichier joint, avec son empreinte SHA-256. Lien stable : releases/latest/download/app_model.joblib. README, « Trying the app without collecting data » : télécharger le modèle dans data/, mettre sa clé Riot dans .env, docker compose up -d --build app (l'appli seule, sans base). Un .joblib est un pickle Python (il peut exécuter du code au chargement) : d'où l'empreinte à vérifier ; modèle enregistré avec scikit-learn 1.9.1 (même version dans l'image Docker).
+- Testé d'abord à part sur les parties en cache de Paul (faux client Riot) : 68 images, 28 s, 1,1 Mo ; couleurs et curseur vérifiés image par image.
+- README : statut v2, GIF + légende en tête, make_demo.py et docs/demo.gif dans la structure, sections « Trying the app without collecting data » et « Recording the demo GIF », Roadmap (tout le plan prévu est fait).
+
+## Prochaine étape
+Tout le PLAN est fait. Idées : une clé de production Riot (site public), un modèle par rang.
 
 ## Étape 5 faite : décisions de conception (23 oct. 2026)
 - sql/schema.sql = 7 tables : players(puuid), matches, teams (clé match_id + team_id), participants (clé match_id + participant_id, FK vers teams et players), participant_frames (match_id, participant_id, minute : toutes les frames gardées pour le GRU), events (event_id auto ; types CHAMPION_KILL, ELITE_MONSTER_KILL, BUILDING_KILL, TURRET_PLATE_DESTROYED), event_assists (table n,n entre events et participants).

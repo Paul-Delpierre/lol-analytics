@@ -33,7 +33,7 @@
 ## Février : produit → v2
 - [x] Appli Streamlit (Riot ID → parties, courbe, moments clés) — src/app.py, mêmes variables qu'à l'entraînement (écart 0 sur 200 parties), bilan de fiabilité par joueur
 - [x] Docker Compose (appli + base), tests pytest, GitHub Actions — image de l'appli sans PyTorch, 48 tests (dont base vs JSON sur PostgreSQL), 3 tâches GitHub Actions à chaque push
-- [ ] GIF de démo dans le README
+- [x] GIF de démo dans le README — src/make_demo.py (navigateur piloté par Playwright, captures assemblées en GIF), modèle de l'appli publié dans la Release v2.0 (essayer l'appli sans collecter de données)
 
 ## Règles
 - Ne jamais committer `.env` ni `data/`

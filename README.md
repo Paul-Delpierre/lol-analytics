@@ -6,7 +6,11 @@
 
 End-to-end data project on ranked Solo/Duo matches (EUW): collection through the Riot API, a PostgreSQL database, statistical tests, a win-prediction model with leakage-free validation, calibration checks and SHAP explanations.
 
-> **Status: v1.** Data pipeline, 15-minute win model, minute-by-minute win probability, a live demo and a local Streamlit app are done; the app and the database start with one Docker Compose command, and tests run on every push (GitHub Actions). Next: a demo GIF.
+> **Status: v2.** Data pipeline, 15-minute win model, minute-by-minute win probability, a live demo and a local Streamlit app (below) are done; the app and the database start with one Docker Compose command, and tests run on every push (GitHub Actions).
+
+![Demo of the Streamlit app: a Riot ID, the minute-by-minute win probability of one match, its key moments, and what drives the probability at a chosen minute](docs/demo.gif)
+
+*The local Streamlit app on one of my recent matches. Hovering a point shows the events of that minute; the bars explain the probability at the chosen minute. Recorded by `src/make_demo.py`.*
 
 ## Results at a glance
 
@@ -57,7 +61,8 @@ lol-analytics/
 │   ├── riot_games.py     # the app's Riot API access with an on-disk cache
 │   ├── app.py            # Streamlit app (local)
 │   ├── live.py           # live demo: local game API -> win probability each minute (personal use)
-│   └── make_figures.py   # rebuilds the README figures
+│   ├── make_figures.py   # rebuilds the README figures
+│   └── make_demo.py      # records docs/demo.gif (a scripted browser drives the app)
 ├── notebooks/
 │   ├── 01_exploration.ipynb   # exploratory analysis
 │   ├── 02_regression.ipynb    # hypothesis tests (statsmodels)
@@ -71,6 +76,7 @@ lol-analytics/
 ├── .streamlit/config.toml # app settings (local only, no usage stats)
 ├── .github/workflows/tests.yml # CI: unit tests, database test, Docker build
 ├── docs/figures/         # README figures
+├── docs/demo.gif         # the demo at the top of this README
 ├── data/                 # local data (not versioned)
 ├── Dockerfile            # image of the Streamlit app (no PyTorch, no secrets, non-root)
 ├── docker-compose.yml    # PostgreSQL 16 + the app
@@ -121,6 +127,28 @@ Or with Docker, once the model is trained (it is read from `data/`, the Riot key
 docker compose up -d --build       # database + app, then open http://localhost:8501
 docker compose stop                # stop both (data kept)
 ```
+
+### Trying the app without collecting data
+
+The app only needs the trained model (63 KB of logistic regression coefficients, no player data), published with each [release](https://github.com/Paul-Delpierre/lol-analytics/releases/latest), and your own [Riot development key](https://developer.riotgames.com/):
+
+```bash
+# from the repository root, with .env holding RIOT_API_KEY=...
+curl -L --create-dirs -o data/app_model.joblib https://github.com/Paul-Delpierre/lol-analytics/releases/latest/download/app_model.joblib
+docker compose up -d --build app   # the app only, no database needed; open http://localhost:8501
+```
+
+On Windows PowerShell, type `curl.exe` instead of `curl`. `.joblib` files are Python pickles, which can run code when loaded: only load one from a source you trust. The release lists the file's SHA-256 so you can check it (`certutil -hashfile data\app_model.joblib SHA256` on Windows, `sha256sum` elsewhere). The model was saved with scikit-learn 1.9.1, the version pinned in `requirements.txt` and used by the Docker image.
+
+### Recording the demo GIF
+
+```bash
+pip install playwright==1.63.0           # a documentation tool, not an app dependency
+python -m playwright install chromium    # the browser it drives (~150 MB, once)
+python src/make_demo.py --riot-id "GameName#TAG"   # the app must be running on :8501
+```
+
+The script opens the app in a headless browser, types the Riot ID, waits for the matches, hovers the curve, scrolls to the key moments and moves the minute slider, taking a screenshot after each action. The screenshots become `docs/demo.gif` (Pillow, one shared palette, identical frames merged): the demo is replayable after every change of the app, and nothing but the page is recorded. Options: `--game 3` films another match, `--width` and `--colors` trade quality for size.
 
 ### Running the tests
 
@@ -310,7 +338,7 @@ python src/live.py dump                 # saves the raw game state (JSON) for de
 
 ## Roadmap
 
-- **App**: a demo GIF in this README.
+Everything planned is done. Ideas for later: a production Riot key would allow a public site; a model per rank would show whether leads matter as much in every elo.
 
 ## Data & privacy
 
